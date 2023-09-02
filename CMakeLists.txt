@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.0.0)
 
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED YES)
+
 project(small-compiler VERSION 2.3.1 LANGUAGES C)
 
-add_executable(scpack scpack.c)
-add_executable(sc sc1.c sc2.c sc3.c sc4.c sc5.c sc6.c sc7.c scvars.c sclist.c scexpand.c)
+add_subdirectory(src)
