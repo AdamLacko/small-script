@@ -35,3 +35,5 @@ Options:
          -p<name> set name of "prefix" file
 ```
 ## License
+Refer to the original [License](https://github.com/AdamLacko/small-script/blob/main/LICENSE)
+Any additions or extensions fall under [MIT License](https://en.wikipedia.org/wiki/MIT_License)
