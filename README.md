@@ -1,5 +1,6 @@
 # Small Script v2.3.1
 This repository contains a source code and build setup for **Small v2.3.1** - a specific version dating back to 2003 that was used by *Black Isle Studios* in later *cancelled videogame Fallout 3*, then codenamed **Van Buren**.
+[![Build](https://github.com/AdamLacko/small-script/actions/workflows/cmake-multi-platform.yml/badge.svg?event=push)](https://github.com/AdamLacko/small-script/actions/workflows/cmake-multi-platform.yml)
 ## About Small
 Small is a simple, typeless, 32-bit extension language with a C-like syntax. Execution speed, stability, simplicity and a small footprint were essential design criterions for both the language and the interpreter/abstract machine that a Small program runs on.
 
