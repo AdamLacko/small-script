@@ -555,16 +555,16 @@ static int findopcode(char *instr,int maxlen)
   high=(sizeof opcodelist / sizeof opcodelist[0])-1;
   while (low<high) {
     mid=(low+high)/2;
-    assert(opcodelist[mid].name!=NULL);
-    cmp=stricmp(str,opcodelist[mid].name);
-    if (cmp>0)
+    assert(opcodelist[mid].name != NULL);
+    cmp = strcasecmp(str, opcodelist[mid].name);
+    if (cmp > 0)
       low=mid+1;
     else
       high=mid;
   } /* while */
 
   assert(low==high);
-  if (stricmp(str,opcodelist[low].name)==0)
+  if (strcasecmp(str,opcodelist[low].name)==0)
     return low;         /* found */
   return 0;             /* not found, return special index */
 }
@@ -587,7 +587,7 @@ SC_FUNC void assemble(FILE *fout,FILE *fin)
     assert(opcodelist[1].name!=NULL);
     for (i=2; i<(sizeof opcodelist / sizeof opcodelist[0]); i++) {
       assert(opcodelist[i].name!=NULL);
-      assert(stricmp(opcodelist[i].name,opcodelist[i-1].name)>0);
+      assert(strcasecmp(opcodelist[i].name,opcodelist[i-1].name)>0);
     } /* for */
   #endif
 
