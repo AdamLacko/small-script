@@ -8,6 +8,28 @@ An application or tool cannot do or be everything for all users. This not only j
 The Small language was designed as a flexible language for manipulating objects in a host application. The tool set (compiler, abstract machine) were written so that they were easily extensible and would run on different software/hardware architectures.
 
 ## Building
-The source code authors used Watcom compiler along with Opus Make. I tried this approach and managed to compile the source with [OpenWatcom](https://github.com/open-watcom/open-watcom-v2). However, due to several inconveniences caused by Watcom and its implementation of C, I decided to port the source for a more modern compiler. Thus, the source code in this repository compiles with modern GCC 13.1.0.
+The source code authors used Watcom compiler along with Opus Make. I tried this approach and managed to compile the source with [OpenWatcom](https://github.com/open-watcom/open-watcom-v2). However, due to several inconveniences caused by Watcom and its implementation of C, I decided to port the source for a more modern compiler. Thus, the source code in this repository compiles with modern GCC 13.1.0 and should compile with MSVC and Clang as well.
 
 The repository is structured and set up as a standard CMake project. Simply clone or download the repository and open it in your CMake-compliant environment.
+
+## Usage
+`sc <filename> [options]`
+```
+Options:
+         -A<num>  alignment in bytes of the data segment and the stack
+         -a       output assembler code (skip code generation pass)
+         -C[+/-]  compact encoding for output file (default=+)
+         -c8      [default] a character is 8-bits (ASCII/ISO Latin-1)
+         -c16     a character is 16-bits (Unicode)
+         -d0      no symbolic information, no run-time checks
+         -d1      [default] run-time checks, no symbolic information
+         -d2      full debug information and dynamic checking
+         -d3      full debug information, dynamic checking, no optimization
+         -e<name> set name of error file (quiet compile)
+         -H<hwnd> window handle to send a notification message on finish
+         -i<name> path for include files
+         -l       create list file (preprocess only)
+         -o<name> set base name of output file
+         -P[+/-]  strings are "packed" by default (default=-)
+         -p<name> set name of "prefix" file
+```
