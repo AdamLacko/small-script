@@ -1,0 +1,1481 @@
+\def\boldline#1{{\bf #1}\lbreak}
+
+\appendix{Building the compiler}
+%-------------------------------
+The C sources of the compiler contain sections of code that are conditionally
+compiled. See your compiler manual how to specify options on the command line
+or in a ``project'' to set these options. The compiler source code also
+contains assertions to help me catch bugs while maintaining the code. To build
+the compiler without the assertions, compile the compiler with the NDEBUG
+definition set.
+
+There are two makefiles and a set of project files for building the \Small\ compiler.
+You can choose the one that is most convenient:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  \sidx{Opus MAKE} \sidx{MAKE}
+  ``|makefile|'', for DOS/Windows, multiple compilers and Borland/Opus \smallcaps{make}
+\list{\lbullet}
+  \sidx{GNU MAKE} \sidx{MAKE}
+  ``|makefile.linux|'', for Linux using GCC and GNU \smallcaps{make}
+\list{\lbullet}
+  \sidx{Microsoft Visual C/\Cpp}
+  For users of Microsoft Visual C/\Cpp, ``project'' and ``workspace''
+  files for the compiler and abstract machine that can be found in the ``msvc''
+  subdirectory of where \Small\ is installed.
+\list{\lbullet}
+  \sidx{CMake}
+  An alternative, multi-platform tool for building \Small\ is ``CMake''.\stdfootnote{See
+  http://www.cmake.org/ for more information on CMake plus a freely downloadable
+  copy.\par}
+  Project files for CMake are included in the compiler and \smallcaps{amx}
+  directories.
+\endlist
+
+\sidx{Microsoft Visual C/\Cpp} \sidx{Opus MAKE} \sidx{MAKE}
+The ``|makefile.win|'' is for DOS/Windows and supports multiple compilers. I tested
+this makefile with Borland \smallcaps{make} and Opus \smallcaps{make}. To select
+a compiler, you have to define a constant on the command line for the \smallcaps{make}
+utility; for example, when using Opus \smallcaps{make} and the Microsoft
+Visual C/\Cpp\ compiler, you would say:
+
+\tabto 40pt |make -fmakefile.win MSC=1|
+
+Alternatively, you can modify the makefile and comment out the compiler
+definitions that you do not want. If you furthermore rename |makefile.unx| to
+simply |makefile|, you can build the compiler with the simple command:
+
+\tabto 40pt |make|
+
+\sidx{Linux} \codeidx{dos2unix} \sidx{CR/LF}
+The makefile for Linux is ``|makefile.unx|''. When compiling the sources under
+Linux, you may need to first translate the CR/LF line endings to LF line endings
+---there are two source code archives for \Small: the ZIP file has DOS/Windows-style
+line endings (CR/LF) and the TAR-GZIP file has Unix-style line endings (LF).
+Some tools (e.g. the GCC compiler) are sensitive to the way that lines are
+ended. The utility ``|dos2unix|'' is the most convenient way to translate source
+files. That behind you, you should be able to say:
+
+\tabto 40pt |make -f makefile.unx|
+
+Note that the compiler uses an include file from the ``amx'' subdirectory too,
+so its probably best to run |dos2unix| over all source files in all
+subdirectories.
+
+\sidx{CMake}
+CMake is a tool that {\it builds\/} makefiles or IDE project files from a general
+purpose project description file and a set of pre-build compiler definition files.
+As an alternative to use the included makefiles, you can therefore use CMake to
+build a dedicated makefile for your platform (Windows\slash Unix) and your
+compiler.
+
+\subsection{Compile-time options}
+%--------------------------------
+The compiler is a stand-alone program. If you want to link it to an
+application, can compile the sources with the macro definition |NO_MAIN|. This
+will strip the ``|main|'' function and a set of I/O functions from the program.
+See the section ``Embedding the compiler into an application'' (below) for details.
+
+If you want a \Small\ compiler that outputs 16-bit P-code, add the definition
+|BIT16| to the compiler options. Note that this is unrelated to whether the
+compiler itself is a 16-bit or a 32-bit executable program. The header file
+uses precise types for a compiler that comforms to the C99 standard, but for
+older (i.e. ``most'') compilers it boldly assumes that a ``|short int|'' is
+16-bits and a ``|long int|'' is 32-bits. If
+this is not true for your compiler, you must change the definition of the cell
+type in |SC.H|, but you must also check the locations where there is an
+``|#if defined(BIT16)|'' around some code, because I use the constants
+|SHORT_MAX| and |LONG_MAX| from |LIMITS.H| as well. \lbreak
+{\bf N.B.} The \Small\ tools are not regularly tested with the |BIT16| definition.
+
+\sidx{Peephole optimizer} \sidx{Optimizer}
+The basic code generation is followed by a simple peephole optimizer. If you
+stumble on a code generation bug, one of the first things that you may want
+to find out is whether this bug is in the code generation or in the optimizer.
+To do so, use the option |-d3| of the \Small\ compiler (this replaces the
+|NO_OPTIMIZE| macro in previous releases to ``conditionally compile'' the peephole
+optimizer).
+
+To save data space (which is important for the 16-bit version of the compiler,
+where data and stack must fit in one 64 kBytes segment), two tables of strings
+are compressed; these tables are in SC5.SCP and SC7.SCP. If you change those
+strings (or add to them), the strings should be recompressed with the utility
+|SCPACK|. Before that, you have to build |SCPACK| itself ---this is a simple
+ANSI C program with no dependencies on other files.
+
+\sidx{Pre-processor}
+The \Small\ compiler includes a preprocessor that does text substitutions (with
+or without parameters). The text matching capabilities of the \Small\ preprocessor
+are even more flexible than that of the C/\Cpp\ preprocessor, and, as a consequence,
+it is also at least as ``dangerous'' in obfuscating code. You may decide not to
+include the preprocessor (and the |#define| keyword) by setting the compile-time
+option |NO_DEFINE|.
+
+A few functions of the \Small\ compiler are non-essential gadgets. In cases where
+the size of the compiler counts, these can be removed by compiling with the
+|SC_LIGHT| macro defined. With this macro defined, the compiler will miss:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+    the usage report (cross-reference); i.e. the ``|-r|'' option
+\list{\lbullet}
+    the ability to parse response files; the ``|@filename|'' command line option is ignored
+\list{\lbullet}
+    support for a |SC.CFG| file, whose options are implicitly read
+\endlist
+
+
+\subsection{Summary of definitions}
+%----------------------------------
+\beginlist{100pt} \compactlist
+\list{\tt BIT16}
+    cell is 16-bits, rather than 32-bits
+\list{\tt LINUX}
+    \sidx{Linux}
+    compile for Linux (or perhaps other Unix versions)
+\list{\tt NDEBUG}
+    compile without assertions
+\list{\tt NO_MAIN}
+    remove main() and I/O functions from the program
+\list{\tt NO_DEFINE}
+    remove the text preprocessor from the \Small\ compiler (i.e.\ the |#define| directive)
+\list{\tt SC_LIGHT}
+    remove cross-reference and response file support
+\endlist
+
+\subsection{Embedding the compiler into an application}
+%------------------------------------------------------
+When you want to link the \Small\ compiler into an application, you will have
+to strip the ``|main|'' function from it (see the |NO_MAIN| option above). But
+that is just a first step. In addition, you should:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+    Attend to the polution of the global namespace by the many, many functions
+    and global variables of the \Small\ compiler.
+\list{\lbullet}
+    Overrule the functions that the \Small\ compiler calls for input/output.
+\endlist
+
+The archive contains the file |SCLIB.C| which illustrates how to perform these
+steps. Basically, you implement all file I/O functions that the \Small\ compiler
+requires. These functions do not have to read from file or write to file, you
+can compile from memory into memory, provided that you implement the functions
+that do this.
+
+\codeidx{sc_compile}
+Then, from your application, call |sc_compile|, passing in all arguments.
+The prototype of the function is: \lbreak
+\tabto 40pt |int sc_compile(int argc,char **argv)| \lbreak
+As you can see, this function looks like the standard function |main|; when calling
+|sc_compile|, you must fill in an array of arguments, including |argv[0]|
+(because the compiler constructs the path for the include files from the
+path\slash filename in |argv[0]|).
+
+Other functions that you can call from the application (before calling
+|sc_compile|) are |sc_addconstant| and |sc_addtag|. Function |sc_compile|
+removes all symbols before returning, including all constants and tagnames
+that you added with |sc_addconstant| and |sc_addtag|.
+
+
+\appendix{Building abstract machine}
+%===================================
+The C sources contain sections of code that are conditionally compiled. See
+your compiler manual how to specify options on the command line or in a
+``project'' to set these options.
+
+The source code of abstract machine contains assertions to help me catch bugs
+while maintaining the code. In the retail version of the abstract machine, you
+will want to compile without assertions, because this code slows down its
+operation. To do so, compile the compiler or the abstract machine with the
+NDEBUG definition set.
+
+\sidx{Linux}
+The ``default'' build for the tools is for DOS/Windows. To compile for Linux,
+add the macro definition |LINUX| on the compiler's command line.
+
+The ``core'' AMX routines do not use or depend on dynamic memory allocation or
+console IO. The ``property'' functions in |AMXCORE.C| use |malloc|\slash |free|; you
+can remove these property set/retrieval functions by compiling the |AMXCORE.C|
+file with the definition |NOPROPLIST|.
+
+The console IO functions in |AMXCONS.C| use standard C as much as
+possible, but some of the functions also rely on ANSI terminal codes (|ANSI.SYS|
+under DOS). In any case, in a {\it real\/} environment, you will probably want to
+replace |AMXCONS.C| with an alternative that fits your application or operating
+system.
+
+Calling conventions are always an important issue in porting software. The
+\Small\ AMX specifies the calling convention it uses via two macros. These
+macros are blank by default, in order to stay as close to ANSI C as possible.
+By (re-)defining either (or both) of these macros, you can adjust the calling
+conventions:
+\beginlist{100pt} \compactlist
+\list{\tt AMX_NATIVE_CALL}
+    The calling convention for the native functions and for the debugger
+    callback. You may want to set this to |__stdcall| when compiling for Win32.
+\list{\tt AMXAPI}
+    The calling convention used for all interface functions of the abstract
+    machine (e.g. |amx_Init|). You need to change this if you put the AMX in a
+    Windows DLL, for example.
+\endlist
+
+\subsection{Summary of definitions}
+%----------------------------------
+\beginlist{100pt} \compactlist
+\list{\tt AMX_NATIVE_CALL}
+    calling convention of native function
+\list{\tt AMXAPI}
+    calling convention of interface functions
+\list{\tt ASM32}
+    compile the assembler version
+\list{\tt JIT}
+    add support for the Just-In-Time compiler
+\list{\tt LINUX}
+    \sidx{Linux}
+    compile for Linux (or perhaps other Unix versions)
+\list{\tt NDEBUG}
+    compile without assertions
+\list{\tt NOPROPLIST}
+    remove the get/set property functions from |AMXCORE.C|
+\list{\tt FIXEDPOINT}
+    add fixed point support, see also |FLOATPOINT| option
+\list{\tt FLOATPOINT}
+    add floating point support, see the separate section below
+\endlist
+
+\sidx{P-code}
+All compiling examples (listed below) have as few command line options as
+needed. Consult the compiler documentation to add debugging information or to
+enable optimizations. The program that each of the examples compile is |SRUN|,
+a simple P-code interpretor that is developed starting at \xref{p.srun0}.
+
+\sidx{Microsoft Visual C/\Cpp}
+As an aside, ``project'' and ``workspace'' files for Microsoft Visual C/\Cpp,
+(for the compiler and abstract machine) can be found in the ``msvc'' subdirectory
+of where \Small\ is installed.
+
+\subsection{ANSI C (see the GNU C section for Linux)}
+%----------------------------------------------------
+\beginlist{40pt}
+\list{\bf Borland \Cpp\ version 3.1, 16-bit} \lbreak
+        \sidx{Borland \Cpp}
+        {\smalltt bcc srun.c amx.c amxcore.c amxcons.c}
+
+        {\it The 16-bit compiler in the Borland \Cpp\ 5.0 package appears to
+        have a few code generator errors, so either use an earlier version of
+        the Borland compiler, or compile in 32-bit.}
+
+\list{\bf LCC-Win32, 32-bit} \lbreak
+        \sidx{LCC-Win32}
+        {\smalltt lc srun.c amx.c amxcons.c amxcore.c}
+
+\list{\bf Microsoft Visual C/\Cpp\ version 5.0 or 6.0, 32-bit} \lbreak
+        \sidx{Microsoft Visual C/\Cpp}
+        {\smalltt cl srun.c amx.c amxcons.c amxcore.c}
+
+        {\it When running with warning level 4, option ``-W4'', Visual C/\Cpp\
+        issues a few warnings for unused function arguments.}
+
+\list{\bf Watcom C/\Cpp\ version 11.0, 32-bit} \lbreak
+        \sidx{Watcom C/\Cpp}
+        {\smalltt wcl386 /l=nt srun.c amx.c amxcore.c amxcons.c}
+\endlist
+
+\subsection{Assembler core for the abstract machine}
+%---------------------------------------------------
+\nameidx{Peter, Marc}
+Marc Peter's assembler implementation of the abstract machine currently runs
+with all 32-bit C compilers for Microsoft Windows. It is (approximately) five
+times faster than the ANSI C version. As you can see on the command line, the C
+files need the |ASM32| macro to be defined.
+
+There are two ``calling convention'' issues in the assembler implementation:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  The convention with which |amx_exec_asm| itself is called. The default
+  calling convention is Watcom's register calling convention. For other
+  compilers, change this to |__cdecl| by setting the macro |STACKARGS|.
+\list{\lbullet}
+  The convention for calling the ``hook'' functions (native functions and
+  the debugger callback). Again, the default is Watcom's register calling
+  convention. Use the macros |CDECL| or |STDECL| for |__cdecl| and |__stdcall|
+  respectively. (Since |STDCALL| is a reserved word on the assembler, I had
+  to choose a different name for the macro, hence |STDECL|.)
+\endlist
+
+\sidx{Microsoft MASM}
+Included in the archive are two pre-assembled object files, for those of
+you who do not have an assembler (note that Microsoft's MASM is now freely
+available from Microsoft's WEB site, and that the free ``Netwide Assembler''
+is now also supported). The two assembler files differ only
+in the calling convention used. Below are the filenames and the commands
+that I used to assemble them:
+\beginlist{40pt}\compactlist
+\list{{\tt AMXEXECC.OBJ} (__cdecl calling convention)} \lbreak
+    {\smalltt ml /c /DCDECL /DSTACKARGS /Cx /coff /Foamxexecc amxexec.asm}
+\list{{\tt AMXEXECS.OBJ} (__stdcall calling convention)} \lbreak
+    {\smalltt ml /c /DSTDECL /DSTACKARGS /Cx /coff /Foamxexecs amxexec.asm}
+\endlist
+
+\sidx{Microsoft MASM} \sidx{Borland TASM} \sidx{Watcom WASM} \sidx{Netwide Assembler}
+The two pre-compiled assembler files were both build from the file |AMXEXEC.ASM|
+(but with different options). This assembler file is compatible with Microsoft MASM,
+Borland TASM and Watcom WASM. The Netwide Assembler (NASM) has a syntax that is
+similar to that of MASM\slash TASM\slash WASM, but is incompatible with it. The
+file ``|AMXEXECN.ASM|'' (note the ``|N|'' after ``|AMXEXEC|'') is the same
+implementation of the assembler core for the abstract machine, but using the
+``Netwide Assembler'' syntax. The Netwide Assembler is a free assembler which
+runs on a variety of platforms.
+
+\sidx{Netwide Assembler}
+The Netwide Assembler version of the abstract machine code does not support
+Watcom's ``register calling'' convention ---it always uses the |__cdecl| for
+the |amx_exec_asm| function itself. The calling convention for the ``hook''
+functions is |__cdecl| by default, but this can be changed to |__stdcall| by
+setting the |STDECL| macro at the NASM command line.
+
+I have had troubles with the incremental linker when mixing assembler with
+C/\Cpp, for both Borland and Microsoft compilers. When the program fails for
+mysterious reasons, or when the debugger shows assembler code or variable
+addresses that clearly do not match the associated source code, first do
+a full build (and especially a full ``link'').
+
+\beginlist{40pt}
+\list{\bf Borland \Cpp\ version 5.02 \& TASM, 32-bit} \lbreak
+        \sidx{Borland \Cpp}
+        {\smalltt bcc32 -DASM32 -TdCDECL -TdSTACKARGS srun.c amx.c amxcore.c {\sevenit (\dots)}\lbreak{\sevenit (\dots)} amxcons.c amxexec.asm}
+
+        {\it You must assemble |AMXEXEC.ASM| with the ``|CDECL|'' and ``|STACKARGS|''
+        options. The ``-T'' compiler option passes what follows on the TASM32.}
+
+\list{\bf Borland \Cpp\ version 5.02 \& NASM, 32-bit} \lbreak
+        \sidx{Borland \Cpp}
+        {\smalltt nasmw -f obj -d BORLAND amxexecn.asm} \lbreak
+        {\smalltt bcc32 -DASM32 srun.c amx.c amxcore.c amxcons.c amxexecn.obj}
+
+        {\it You must assemble |AMXEXECN.ASM| with the ``|BORLAND|'' option,
+        because Borland \Cpp\ uses different segment declarations as other
+        compilers.}
+
+\list{\bf GNU GCC for Linux} \lbreak
+        \sidx{GNU GCC}
+        {\smalltt nasm -f elf amxexecn.asm} \lbreak
+        {\smalltt gcc -o srun -DLINUX -DASM32 -I../linux srun.c amx.c amxcore.c {\sevenit (\dots)}\lbreak{\sevenit (\dots)} amxcons.c amxexecn.o}
+
+        {\it Most Linux distributions use the ``elf'' file format.}
+
+\list{\bf LCC-Win32 \& MASM, 32-bit} \lbreak
+        \sidx{LCC-Win32}
+        {\smalltt ml /c /DCDECL /DSTACKARGS /Cx /coff amxexec.asm} \lbreak
+        {\smalltt lc -DASM32 srun.c amx.c amxcons.c amxcore.c amxexec.obj}
+
+        {\it LCC-Win32 does not come with an assembler, I have used MASM here.
+        I have only done preliminary testing with LCC-Win32.}
+
+\list{\bf Microsoft Visual C/\Cpp\ version 5.0 or 6.0, 32-bit, __cdecl} \lbreak
+        \sidx{Microsoft Visual C/\Cpp}
+        {\smalltt ml /c /DCDECL /DSTACKARGS /Cx /coff amxexec.asm} \lbreak
+        {\smalltt cl -Gd -DASM32 srun.c amx.c amxcons.c amxcore.c amxexec.obj}
+
+        {\it Microsoft appears to use |__cdecl| calling convention by default,
+        but I have forced the calling convention to be sure: option -Gd.}
+
+\list{\bf Microsoft Visual C/\Cpp\ version 5.0 or 6.0, 32-bit, __stddecl} \lbreak
+        \sidx{Microsoft Visual C/\Cpp}
+        {\smalltt ml /c /DSTDECL /DSTACKARGS /Cx /coff amxexec.asm} \lbreak
+        {\smalltt cl -Gz -DASM32 -DAMXAPI=__stdcall srun.c amx.c amxcons.c {\sevenit (\dots)}\lbreak{\sevenit (\dots)} amxcore.c amxexec.obj}
+
+        {\it Option |-Gz| forces |__stdcall| calling convention. The assembler
+        file now uses |STDECL| (for |__stdcall|) too.}
+
+\list{\bf Watcom C/\Cpp\ version 11.0 \& WASM, 32-bit} \lbreak
+        \sidx{Watcom C/\Cpp}
+        {\smalltt wcl386 /l=nt /dASM32 srun.c amx.c amxcore.c amxcons.c amxexec.asm}
+
+        {\it Watcom C/\Cpp\ uses register calling convention, which is fastest
+        in this case.}
+\endlist
+
+\subsection{Just-In-Time compiler}
+%---------------------------------
+\sidx{Just-In-Time compiler}
+The third option (for Borland \Cpp\ and Watcom C/\Cpp) is to add the Just-In-Time compiler, plus
+support routines. The JIT compiles the P-code of the AMX to native machine
+code at run-time. The resulting code is more than twice as fast as the
+assembler version of the abstract machine (which was pretty fast already).
+To add support for the JIT, you must define the macro ``|JIT|'' via a command
+line switch.
+
+There are, in fact, two versions of the JIT: |JITR.ASM| uses register based
+calling conventions and requires Watcom C/\Cpp; |JITS.ASM| uses |__cdecl|
+calling convention (stack based) and should work with other Win32
+compilers. Apart from the calling conventions, both JIT versions are
+identical.
+
+The source files |JITR.ASM| and |JITS.ASM| (for the Just-In-Time compiler)
+contain several definitions with which you can trade performance for other
+options (like support for some debug opcodes).
+
+\sidx{Debugger interface} \sidx{Debug hook}
+Note that the JIT (as it is today) does not support the debugger hooks.
+
+\beginlist{40pt}
+\list{\bf Borland \Cpp\ version 5.02, 32-bit} \lbreak
+        \sidx{Borland \Cpp}
+        {\smalltt bcc32 -DJIT -Tm2 srun.c amx.c amxcore.c amxcons.c jits.asm}
+
+        {\it You must force TASM to use at two passes, so that forward
+        references are resolved. The -Tm2 option accomplishes this.}
+
+\list{\bf Watcom C/\Cpp\ version 11.0, 32-bit} \lbreak
+        \sidx{Watcom C/\Cpp}
+        {\smalltt wcl386 /l=nt /dJIT srun.c amx.c amxcore.c amxcons.c jitr.asm}
+
+        {\it Watcom C/\Cpp\ uses register calling convention, which is fastest
+        in this case.}
+\endlist
+
+
+\subsection{Direct threaded interpreter with GNU C extensions}
+%-------------------------------------------------------------
+\sidx{Threading} \sidx{Linux}
+The AMX.C file has special code for the GNU C compiler (GCC), which makes
+the abstract machine about twice as fast as the ANSI C version. However,
+the assembler core and the JIT are faster still.
+
+\beginlist{40pt}
+\list{\bf GNU GCC for DOS/Windows (DJGPP version 2.01), 32-bit} \lbreak
+        \sidx{GNU GCC}
+        {\smalltt gcc -o srun.exe srun.c amx.c amxcore.c amxcons.c}
+
+        {\it When running with all warnings enabled, option ``|-Wall|'', the GNU
+        C compiler suggests extra parantheses around subexpressions in a
+        logical expression; I do not agree with the desirability of extra
+        parantheses in this case, so I have not added them.}
+
+\list{\bf GNU GCC for Linux} \lbreak
+        \sidx{GNU GCC}
+        {\smalltt gcc -o srun -DLINUX -I../linux srun.c amx.c amxcore.c amxcons.c}
+
+        {\it You must add the ``|LINUX|'' option for alternative support code.}
+\endlist
+
+
+\subsection{Support for floating point in the Abstract Machine}
+%--------------------------------------------------------------
+\sidx{Floating point support}
+The definitions for user defined operators for the floating point routines are
+in the file ``|FLOAT.INC|''. You can use floating point artithmetic in your
+\Small\ programs by including this file. The include file gives definitions for native
+functions that perform the basic floating point operations and user-defined
+operators to map those to the common add\slash subtract\slash multiply\slash divide operators.
+See the \Small\ booklet ``The Language'' for more information on user-defined
+operators.
+
+The abstract machine needs to support floating point operations as well. This
+requires two additions to the compilation of the abstract machine:
+\beginlist{1em} \compactlist
+\list{1.} you must define the macro ``|FLOATPOINT|'' when compiling the source files;
+\list{2.} you should add the file |FLOAT.C| to the list of files
+\endlist
+
+These two steps apply to all ``compiler command lines'' given above. For example,
+the first command line (ANSI C, using the 16-bit Borland \Cpp\ compiler) becomes:
+
+\sidx{Borland \Cpp}
+\tabto 40pt {\smalltt bcc -DFLOATPOINT srun.c amx.c amxcore.c amxcons.c float.c}
+
+\tabto 40pt {\it The original line read: {\smalltt bcc srun.c amx.c amxcore.c amxcons.c}}
+
+\sidx{Fixed point support}
+Fixed point support, by the way, is added in nearly the same way: you add the
+macro |FIXEDPOINT| on the compiler command line and you include the file |FIXED.C|
+on the file list. In your \Small\ program, you must include the file |FIXED.INC|
+for the definitions and user defined operators.
+
+
+\appendix{Design of the abstract machine}
+%----------------------------------------
+The first issue is: why an abstract machine at all? By compiling into the
+native machine language of the processor of your choice, the performance will
+be so much better.
+
+There is only one real reason to use an abstract machine: cross-platform
+compatibility of the compiled binary code. At the time that \Small\ was
+designed, both 16-bit and 32-bit platforms on the 80x86 processor series were
+important for me. By the time I can forget about 16-bit operating systems,
+alternate microprocessors (like PowerPC and DEC Alpha) may have become
+essential.
+
+Other reasons (while not essential) are:
+\beginlist{1em}
+\list{\lbullet} It is far easier to keep a program running in an abstract
+  machine inside its ``sandbox''. For example, an unbounded recursion in an
+  abstract machine crashes the abstract machine itself, but not much else. If
+  you run native machine code, the recursive routine may damage the system
+  stack and crash the application. Although modern operating systems support
+  multithreading, with a separate stack per thread, the default action for an
+  overrun of any stack is still to shut down the entire application.
+
+\list{\lbullet} It is easier to design a language where a data object (an
+  array) can contain bytecode which is later executed. Modern operating
+  systems separate code and data sections: you cannot write into a code
+  section and you cannot execute data; that is, not without serious effort.
+
+  The current \Small\ language does not have the ability to execute bytecode
+  from an array, but the abstract machine is not too tightly coupled to the
+  language. That is, future versions of the \Small\ language may provide a means
+  to execute a code stream from a variable without requiring me to redesign
+  the abstract machine.
+\endlist
+
+\sidx{Abstract Machine eXecutive}[stack based]
+My first stab at designing an abstract machine was to look at current
+implementations. It appears that it is some kind of a tradition to implement
+abstract machines as stack machines, even though the design for
+microprocessors has moved towards register based implementations. All the
+abstract machines I encountered are stack based. These include:
+\makecolumns 6/2:
+\lbullet\ \ Microsoft C/\Cpp\ 7.0 (P-code option)
+\lbullet\ \ Lua \sidx{Lua}
+\lbullet\ \ \smallcaps{BOB} \sidx{BOB}
+\lbullet\ \ Java VM (JVM) \sidx{Java}
+\lbullet\ \ the B language (predecessor of C) \nameidx{Thompson, Ken}
+\lbullet\ \ the Amsterdam Compiler Kit
+
+Stack machines are surely compact, flexible and simple to implement, but they
+are also more difficult to optimize for speed. To see why, let's analyze a
+specific example.
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        a = b + 2;      /* where "a" and "b" are simple variables */
+|endverbatim
+
+\boldline{Native code}
+In 32-bit assembler, this would be:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        mov     eax, [b]
+        add     eax, 2
+        mov     [a], eax
+|endverbatim
+
+\boldline{Stack based abstract machine}
+\sidx{Forth}
+Forth is the archetype for a stack machine, I will therefore use it as an
+example. The same routine in Forth would be:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        b @ 2 + a !
+|endverbatim
+
+where each letter is an instruction (the ``@'' stands for ``fetch'' and ``!''
+for store; note that stack machines run code in ``reverse polish notation'').
+So these are six instructions in bytecode, but the code expands to:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        b       push    offset b
+        @       pop     eax
+                push    [eax]
+        2       push    2
+        +       pop     edx
+                pop     eax
+                add     eax, edx
+                push    eax
+        a       push    offset a
+        !       pop     edx
+                pop     eax
+                mov     [edx], eax
+|endverbatim
+
+Two observations: {\sevenb 1.}\ the stack machine makes heavy use of memory (bad
+for performance) and {\sevenb 2.}\ the expanded code is quite large when
+compared to the native code (12 instructions versus 3).
+
+The expanded code is what a ``just-in-time'' compiler (JIT) might make from it
+(though one may expect an optimizing JIT to reduce the redundant ``pushes''
+and ``pops'' somewhat). When running the code in an abstract machine, the
+abstract machine must also expand the code, but in addition, it has overhead
+for fetching and decoding instructions. This overhead is at least two native
+instructions per bytecode instruction (more on this later). For six bytecode
+instructions, one should add another 12 native instructions to the 12 native
+instructions of the expanded code. And still, the example is greatly
+simplified, because the code runs on the systems stack and uses the systems
+address space.
+
+In other words, a stack-based abstract machine runs a native 3-instruction
+code snippet in 6 bytecode instructions, which turn out to take 24 native
+instructions, and more if you want to run the abstract machine on its own
+stack and in its own (protected) data space.
+
+\boldline{Register-based abstract machine}
+\nameidx{Von Neumann}
+Microprocessors have used registers since their theoretical inception by Von
+Neumann. Extending this architecture to an abstract machine is only natural.
+There are two advantages: the abstract machine instructions map better to the
+native instructions (you may actually use the processor's registers to
+implement the abstract machine's registers) and the number of virtual
+instructions that is needed to executed a simple expression can be reduced.
+
+\sidx{Abstract Machine eXecutive}[design]
+As an example, here is the code for the \Small\ ``AMX'', a two-register abstract
+machine (AMX stands for ``Abstract Machine eXecutive''):
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        load.pri    b   ; "pri" is the primary register, i.e. the accumulator
+        const.alt   2   ; "alt" is the alternate register
+        add             ; pri = pri + alt
+        stor.pri    a   ; store "pri" in variable "a"
+|endverbatim
+
+In expanded code, this would be:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        load.pri   b        mov   eax, [b]
+        const.alt  2        mov   edx, 2
+        add                 add   eax, edx
+        stor.pri   a        mov   [a], eax
+|endverbatim
+
+The four bytecode instructions map nicely to native instructions. Here again,
+we will have to add the overhead for fetching and decoding the bytecode
+instructions (2 native instructions per bytecode instruction). When compared
+to a stack-based abstract machine, the register-based abstract machine runs
+twice as fast; in 12 native instructions, versus 24 native instructions
+for a stack-based abstract machine.
+
+There is more: in my experience, stack-based abstract machines are easier to
+optimize for size and register-based abstract machines are easier to optimize
+for speed. So a register-based abstract machine can indeed be twice as fast as
+a stack-based abstract machine.
+
+To elaborate a little further on optimizing: I have intentionally chosen to
+add ``2'' to a variable. Incrementing or decrementing a value by one or two is
+such a common case that Forth has a special operator for them: the word ``2+''
+adds 2 to a value. Assuming that a good (stack-based) abstract machine also
+has special opcodes for common operations, using this ``2+'' word instead of
+the general words ``2'' and ``+'' removes one bytecode instruction and 3
+native instructions. This would bring the native instruction count down to
+21. However, the same optimization trick applies to the register-based
+abstract machine. The \Small\ abstract machine has an ``add.c'' opcode that adds
+a constant value to the primary register. The optimized sequence would be:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        load.pri  b         mov   eax, [b]
+        add.c     2         add   eax, 2
+        stor.pri  a         mov   [a], eax
+|endverbatim
+
+which results to 3 native instructions plus 6 instructions of overhead for
+fetching and decoding the bytecode instructions. The register-based abstract
+machine (which needs 9 native instructions) is still approximately twice as
+fast as the stack-based abstract machine (at 21 native instructions).
+
+
+\subsection{Threading}
+
+\sidx{Threading} \sidx{Assembler} \sidx{GNU GCC}
+In an indirect threaded interpreter, each opcode is an index in a table that
+contains a ``jump address'' for every instruction. In a direct threaded
+interpreter, the opcode {\it is\/} the jump address itself. Direct threading
+often requires that all opcodes are ``relocated'' to jump addresses upon
+compilation or upon loading a pre-compiled file. The file format of the
+\Small\ abstract machine is designed such that both indirect and direct threading
+are possible.
+
+A threaded abstract machine is conventionally written in assembler, because
+most high level languages cannot store label addresses in an array. The GNU C
+compiler (GCC), however, extends the C language with an unary ``|&&|''
+operator that returns the address of a label. This address can be stored in a
+``|void *|'' variable type and it can be used later in a |goto| instruction.
+Basically, the following snippet does the same a ``|goto home|'':
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        void *ptr = &&home;
+        goto *ptr;
+|endverbatim
+
+The ANSI C version of the abstract machine uses a large |switch| statement to
+choose the correct instructions for every opcode. Due to direct threading, the
+GNU C version of the abstract machine runs approximately twice as fast as the
+ANSI C version. Fortunately, GNU C runs on quite a few platforms. This means
+that the fast GNU C version is still fairly portable.
+
+\vfill\eject %???
+\subsection{Optimizing in assembler}
+
+\sidx{Assembler}
+The following discussion assumes an Intel 80386 or compatible processor. The
+same technique also applies to 16-bit processors and to processors of other
+brands, but the names (and number) of registers will be different.
+
+It is beneficial to use the processor's registers to implement the registers of
+the abstract machine. The details of the abstract machine for the \Small\ system
+are in appendix \refcust{Abstract machine reference}. Further assumptions are:
+\beginlist{1em}\compactlist
+\list{\lbullet} |PRI| is an alias for the processor's register |EAX| and
+  |ALT| is |EDX|
+\list{\lbullet} |ESI| is the code instruction pointer (|CIP|)
+\list{\lbullet} |EDI| points to the start of the data segment, |ECX| is the
+  stack pointer (|STK|), |EBX| is the frame pointer (|FRM|) and
+  |EBP| is available as a general purpose intermediate register; the remaining
+  registers in the AMX (|STP| and |HEA|, see appendix \refcust{Abstract machine
+  reference}) are local variables.
+\endlist
+
+Every opcode has a set of machine instructions attached to it, plus a trailer
+that branches to the next instruction. The trailer is identical for every
+opcode. As an example, below is the implementation of the |ADD.C| opcode:
+
+\verbatim|vskip|parskip|parskip=0pt|smalltt
+        add     eax, [esi]      ; add constant
+        add     esi, 4          ; skip constant
+        ; the code below is the same for every instruction
+        add     esi, 4          ; pre-adjust instruction pointer
+        jmp     [esi-4]         ; jump to address
+|endverbatim
+
+Note that the ``trailer'' which chains to the next instruction via (direct)
+threading consists of two instructions; this trailer was the origin of the
+premise of a 2-instruction overhead for instruction fetching and decoding in
+the earlier analysis.
+
+In the implementation of the abstract machine, one can hand-optimize
+the sequences further. In the above example, the two ``|add esi, 4|''
+instructions can, of course, be folded into a single instruction that adds
+8 to |ESI|.
+
+
+\appendix{Abstract machine reference}
+%------------------------------------
+The abstract machine consists of a set of registers, a proposed (or imposed)
+memory layout and a set of instructions. Each is discussed in a separate
+section.
+
+\subsection{Register layout}
+\sidx{Abstract Machine eXecutive}[registers]
+The abstract machine mimics a dual-register processor. In addition to the
+two ``general purpose'' registers, it has a few internal registers. Below is
+the list with the names and description of all registers:
+
+\beginlist{30pt}\compactlist
+\list{\tt PRI} primary register (ALU, general purpose).
+\list{\tt ALT} alternate register (general purpose).
+\list{\tt FRM} stack frame pointer, stack-relative memory reads and writes
+  are relative to the address in this register.
+\list{\tt CIP} code instruction pointer.
+\list{\tt DAT} offset to the start of the data.
+\list{\tt COD} offset to the start of the code.
+\list{\tt STP} stack top.
+\list{\tt STK} stack index, indicates the current position in the stack. The
+  stack runs downwards from the |STP| register towards zero.
+\list{\tt HEA} heap pointer. Dynamically allocated memory comes from the
+  heap and the |HEA| register indicates the top of the heap.
+\endlist
+
+Notably missing from the register set is a ``flags'' register. The abstract
+machine keeps no separate set of flags; instead all conditional branches are
+taken depending on the contents of the |PRI| register.
+
+\subsection{Memory image}
+The heap and the stack share a memory block. The stack grows downwards from
+|STP| towards zero; the heap grows upwards. An exception occurs when the
+|STK| and the |HEA| registers collide. (An exception means that the abstract machine aborts
+with an error message. There is currently no exception trapping mechanism.)
+
+The figure below is a proposed memory image layout. Alternative layouts are
+possible. %??? cloned AMX separates data/heap/stack from code
+Specifically, an implementation may choose to keep the heap and
+the stack in a separate memory block next to the memory block for the code,
+the data and the prefix. The top of the figure represents the lowest address
+in memory.
+
+The file format is a dump of the memory image. That
+is, the binary file starts with the prefix, and is followed by the code and
+data sections. The heap and stack sections are not stored in the binary file,
+the abstract machine can build them from information in the ``prefix'' section. The prefix
+also contains startup information, and the definitions of native and
+public functions.
+
+\topfigure{pict/amx}{44}{117}{Memory layout of the abstract machine}
+%       +-------------+
+%       |             |
+%       |    Stack    |
+%       +-------------+
+%       |   (unused)  |
+%       +-------------+
+%       |    Heap     |
+%       +-------------+
+%       |             |
+%       |    Data     |
+%       |             |
+%       +-------------+
+%       |             |
+%       |             |
+%       |    Code     |
+%       |             |
+%       +-------------+
+%       |   Prefix    |
+%       +-------------+
+
+\sidx{Little Endian} \sidx{Byte order}
+\sidx[see]{LBF (Low Byte First)}{Little Endian}
+\sidx[see]{Low Byte First}{Little Endian}
+All multi-byte values in the prefix are stored with the low byte at the lower
+address (Little Endian, or ``low byte first''). The byte order in the generated
+code and data sections depends on the ``flags'' field in the prefix: it may be
+Little Endian, Big Endian or Compact encoding.
+\xrdef{p.amx.header}
+\sidx{Abstract Machine eXecutive}[file format]
+
+\newdimen\parasize      % from table.tex
+\bigskip
+{
+ \catcode`\|=13%  Make |'s locally active.
+ \def\!{\tabalign\strut\vrule\ }%
+ \def|{&\strut\vrule\  }%
+ \def\nlnorule{&\strut\vrule\cr}%
+ \def\nl{\nlnorule                      % rightmost vertical line
+         \vskip 0pt minus 0.4pt\hrule   % horizontal line, may move upwards
+         \goodbreak\vskip -0.4pt\hrule  % possible break, re-do horizontal line
+         \vskip 0pt minus 0.4pt}%       % may move upward
+ \parasize=4.0in
+
+ \def\cellsize{{\sevenit cell size\/}}% shorthand
+
+ \offinterlineskip % for vertical lines
+ \settabs\+\bf \hskip 1.0in & \hskip .6in & \hskip\parasize &\cr
+\hrule
+\! \tt size         | 4 bytes  | size of the memory image, excluding the stack/heap \nl
+\! \tt magic        | 2 bytes  | must be {\tt F1E0} (hexadecimal) \nl
+\! \tt file_version | 1 byte   | file format version, currently 6 \nl
+\! \tt amx_version  | 1 byte   | required minimal version of the abstract machine \nl
+\! \tt flags        | 2 bytes  | flags, see below \nl
+\! \tt defsize      | 2 bytes  | size of a structure in the ``native functions'' and the \nlnorule
+\!                  |          | ``public functions'' tables \nl
+\! \tt cod          | 4 bytes  | offset to the start of the code section \nl
+\! \tt dat          | 4 bytes  | offset to the start of the data section \nl
+\! \tt hea          | 4 bytes  | initial value of the heap, end of the data section \nl
+\! \tt stp          | 4 bytes  | stack top value (the total memory requirements) \nl
+\! \tt cip          | 4 bytes  | starting address ({\tt main()} function), {\tt -1} if none \nl
+\! \tt publics      | 4 bytes  | offset to the ``public functions'' table \nl
+\! \tt natives      | 4 bytes  | offset to the ``native functions'' table \nl
+\! \tt libraries    | 4 bytes  | offset to the table of libraries \nl
+\! \tt pubvars      | 4 bytes  | offset to the ``public variables'' table \nl
+\! \tt tags         | 4 bytes  | offset to the ``public variables'' table \nl
+\! \tt public_tbl   | variable | public functions table (see below) \nl
+\! \tt native_tbl   | variable | native functions table (see below) \nl
+\! \tt library_tbl  | variable | library table (see below) \nl
+\! \tt pubvar_tbl   | variable | public variables table (see below) \nl
+\! \tt tags_tbl     | variable | public tags table (see below) \nl
+}
+
+Each bit in the |flags| field contains one setting. Currently, the defined
+bits are (bits that are not mentioned are currently not defined):
+\beginlist{30 pt}\compactlist
+\list{\tt ~~~0} (|AMX_FLAG_CHAR16|) if set, a character (in a packed string) is 16-bit \sidx{Unicode}
+\list{\tt ~~~1} (|AMX_FLAG_DEBUG|) if set, the file contains symbolic (debug) information
+\list{\tt ~~~2} (|AMX_FLAG_COMPACT|) if set, the file is compressed with ``compact encoding''
+                ---see \xrdef{p.compact.encoding} \sidx{Compact encoding}
+\list{\tt ~~~3} (|AMX_FLAG_BIGENDIAN|) if set, all multi-byte words after the file
+                header are in ``Big Endian'' \sidx{Big Endian} \sidx{Byte order}
+                ---this implies that the file does {\it not\/} use compact encoding
+\list{\tt ~~~4} (|AMX_FLAG_NOCHECKS|) if set, the code has no debug support at all
+                (no array bounds-checking, no assertions, no line-tracing support)
+\list{\tt ~~~14} {\it reserved} ---this bit is used internally
+\list{\tt ~~~15} {\it reserved} ---this bit is used internally
+\endlist
+
+The fixed part of the prefix followed by a series of tables. Each table
+contains zero or more records. The size of these records is in the |defsize|
+field in the prefix. To find the number of records in a table, subtract the
+offset to the table from the offset to the successive table, and divide that
+by |defsize|. For example, the number of records in |native_tbl| is:
+$$records={{\tt libraries} - {\tt natives} \over {\tt defsize}}$$
+The pseudo-code follows the header immediately. To find the number of records
+in |tags_tbl|, subtract |tags| from |cod| and divide by |defsize|.
+
+The records in the public functions table have the format:
+\smallskip
+{
+ \catcode`\|=13%  Make |'s locally active.
+ \def\!{\tabalign\strut\vrule\ }%
+ \def|{&\strut\vrule\  }%
+ \def\nlnorule{&\strut\vrule\cr}%
+ \def\nl{\nlnorule                      % rightmost vertical line
+         \vskip 0pt minus 0.4pt\hrule   % horizontal line, may move upwards
+         \goodbreak\vskip -0.4pt\hrule  % possible break, re-do horizontal line
+         \vskip 0pt minus 0.4pt}%       % may move upward
+ \parasize=3.9in
+
+ \def\cellsize{{\sevenit cell size\/}}% shorthand
+
+ \offinterlineskip % for vertical lines
+ \settabs\+\bf \hskip .7in & \hskip 1in & \hskip\parasize &\cr
+\hrule
+\! \tt address | 4 bytes           | the address (relative to {\tt COD}) of the function \nl
+\! \tt name    | {\tt defsize} - 4 | the name of the public function \nl
+}
+
+The format of the native functions table is very similar (see below). The
+order of the records in the table is important, because the parameter of the
+|SYSREQ.C| instruction is an index into the native functions table.
+\smallskip
+{
+ \catcode`\|=13%  Make |'s locally active.
+ \def\!{\tabalign\strut\vrule\ }%
+ \def|{&\strut\vrule\  }%
+ \def\nlnorule{&\strut\vrule\cr}%
+ \def\nl{\nlnorule                      % rightmost vertical line
+         \vskip 0pt minus 0.4pt\hrule   % horizontal line, may move upwards
+         \goodbreak\vskip -0.4pt\hrule  % possible break, re-do horizontal line
+         \vskip 0pt minus 0.4pt}%       % may move upward
+ \parasize=3.9in
+
+ \def\cellsize{{\sevenit cell size\/}}% shorthand
+
+ \offinterlineskip % for vertical lines
+ \settabs\+\bf \hskip .7in & \hskip 1in & \hskip\parasize &\cr
+\hrule
+\! \tt address | 4 bytes           | used internally, should be zero in the file \nl
+\! \tt name    | {\tt defsize} - 4 | the name of the native function \nl
+}
+
+The library table has the same format as the native functions table. The
+``|address|'' field is used internally and should be zero in the file. The
+``|name|'' field holds the library name.
+
+The ``public variables'' table, again, has a similar record lay out as the
+public functions table. The address field of a public variable contains the
+variable's address relative to the |DAT| section.
+
+
+\subsection{Instruction reference}
+%---------------------------------
+Every instruction consists of an opcode followed by zero or one parameters.
+Each opcode is one byte in size; an instruction parameter has the size of a
+cell (usually four bytes).
+A few ``debugging'' instructions (at the end of the list) form an exception
+to these rules: they have two or more parameters and those parameters are not
+always cell sized.
+
+Many instructions have implied registers as operands. This reduces the number
+of operands that are needed to decode an instruction and, hence, it reduces
+the time needed to decode an instruction. In several cases, the implied
+register is part of the name of the opcode. For example, |PUSH.pri| is the
+name of the opcode that stores the |PRI| register on the stack. This
+instruction has no parameters: its parameter (|PRI|) is implied in the
+opcode name.
+
+The instruction reference is ordered by opcode. The description of two opcodes
+is sometimes combined in one row in the table, because the opcodes differ
+only in a source or a destination register. In these cases, the opcodes and
+the variants of the registers are separated by a ``/''.
+
+The ``semantics'' column gives a brief description of what the opcode does. It
+uses the C language syntax for operators, which are the same as those of the
+\Small\ language. An item between square brackets indicates a memory access
+(relative to the |DAT| register, except for jump and call instructions). So,
+{\tt PRI~=~[address]} means that the value read from memory at location
+{\tt DAT~+~address} is stored in |PRI|.
+
+\sidx{Abstract Machine eXecutive}[opcodes]
+\bigskip
+{
+ \catcode`\|=13%  Make |'s locally active.
+ \def\!{\tabalign\strut\vrule\ }%
+ \def|{&\strut\vrule\  }%
+ \def\nlnorule{&\strut\vrule\cr}%
+ \def\nl{\nlnorule                      % rightmost vertical line
+         \vskip 0pt minus 0.4pt\hrule   % horizontal line, may move upwards
+         \goodbreak\vskip -0.4pt\hrule  % possible break, re-do horizontal line
+         \vskip 0pt minus 0.4pt}%       % may move upward
+ \parasize=3.2in
+
+ \def\cellsize{{\sevenit cell size\/}}% shorthand
+
+ \sevenrm
+ \offinterlineskip % for vertical lines
+ \settabs\+\bf opcode\ & \hskip 1in & \ \bf parameters\ & \hskip\parasize &\cr
+\+\bf opcode\ & \ \bf mnemonic & \ \bf parameters & \ \bf semantics \cr \smallskip \hrule
+\! 1/2   | LOAD.pri/alt   | address | PRI/ALT = [address] \nl
+\! 3/4   | LOAD.S.pri/alt | offset  | PRI/ALT = [FRM + offset] \nl
+\! 5/6   | LREF.pri/alt   | address | PRI/ALT = [ [address] ] \nl
+\! 7/8   | LREF.S.pri/alt | offset  | PRI/ALT = [ [FRM + offset] ] \nl
+\! 9     | LOAD.I         |         | PRI = [PRI] (full cell) \nl
+\! 10    | LODB.I         | number  | PRI = ``number'' bytes from [PRI] (read 1/2/4 bytes) \nl
+\! 11/12 | CONST.pri/alt  | value   | PRI/ALT = value \nl
+\! 13/14 | ADDR.pri/alt   | offset  | PRI/ALT = FRM + offset \nl
+\! 15/16 | STOR.pri/alt   | address | [address] = PRI/ALT \nl
+\! 17/18 | STOR.S.pri/alt | offset  | [FRM + offset] = PRI/ALT \nl
+\! 19/20 | SREF.pri/alt   | address | [ [address] ] = PRI/ALT \nl
+\! 21/22 | SREF.S.pri/alt | offset  | [ [FRM + offset] ] = PRI/ALT \nl
+\! 23    | STOR.I         |         | [ALT] = PRI (full cell) \nl
+\! 24    | STRB.I         | number  | ``number'' bytes at [ALT] = PRI (write 1/2/4 bytes) \nl
+\! 25    | LIDX           |         | PRI = [ ALT + (PRI $\times$ \cellsize) ] \nl
+\! 26    | LIDX.B         | shift   | PRI = [ ALT + (PRI $<<$ {\sevenit shift\/}) ] \nl
+\! 27    | IDXADDR        |         | PRI = ALT + (PRI $\times$ \cellsize) (calculate indexed address) \nl
+\! 28    | IDXADDR.B      | shift   | PRI = ALT + (PRI $<<$ {\sevenit shift\/}) (calculate indexed address) \nl
+\! 29/30 | ALIGN.pri/alt  | number  | Little Endian: PRI/ALT \lower3pt\hbox{$\hat{~}$}= \cellsize $-$ number \nl
+\! 31    | LCTRL          | index   | PRI is set to the current value of any of the special registers. \nlnorule
+\!       |                |         | The index parameter must be: 0=COD, 1=DAT, 2=HEA, \nlnorule
+\!       |                |         | 3=STP, 4=STK, 5=FRM, 6=CIP (of the next instruction) \nl
+\! 32    | SCTRL          | index   | set the indexed special registers to the value in PRI. \nlnorule
+\!       |                |         | The index parameter must be: 2=HEA, 4=STK, 5=FRM, \nlnorule
+\!       |                |         | 6=CIP \nl
+\! 33/34 | MOVE.pri/alt   |         | PRI=ALT / ALT=PRI \nl
+\! 35    | XCHG           |         | Exchange PRI and ALT \nl
+\! 36/37 | PUSH.pri/alt   |         | [STK] = PRI/ALT, STK = STK $-$ \cellsize \nl
+\! 38    | PUSH.R         | value   | Repeat {\it value} $\times$: [STK] = PRI, STK = STK $-$ \cellsize \nl
+\! 39    | PUSH.C         | value   | [STK] = value, STK = STK $-$ \cellsize \nl
+\! 40    | PUSH           | address | [STK] = [address], STK = STK $-$ \cellsize \nl
+\! 41    | PUSH.S         | offset  | [STK] = [FRM + offset], STK = STK $-$ \cellsize \nl
+\! 42/43 | POP.pri/alt    |         | STK = STK + \cellsize, PRI/ALT = [STK] \nl
+\! 44    | STACK          | value   | ALT = STK, STK = STK + value \nl
+\! 45    | HEAP           | value   | ALT = HEA, HEA = HEA + value \nl
+\! 46    | PROC           |         | [STK] = FRM, STK = STK $-$ \cellsize, FRM = STK \nl
+\! 47    | RET            |         | STK = STK + \cellsize, FRM = [STK], \nlnorule
+\!       |                |         | STK = STK + \cellsize, CIP = [STK], \nlnorule
+\!       |                |         | The RET instruction cleans up the stack frame and returns \nlnorule
+\!       |                |         | from the function to the instruction after the call. \nl
+\! 48    | RETN           |         | STK = STK + \cellsize, FRM = [STK], \nlnorule
+\!       |                |         | STK = STK + \cellsize, CIP = [STK], \nlnorule
+\!       |                |         | STK = STK + [STK] \nlnorule
+\!       |                |         | The RETN instruction removes a specified number of bytes \nlnorule
+\!       |                |         | from the stack. The value to adjust STK with must be \nlnorule
+\!       |                |         | pushed prior to the call. \nl
+\! 49    | CALL           | address | [STK] = CIP + 5, STK = STK $-$ \cellsize \nlnorule
+\!       |                |         | CIP = address \nlnorule
+\!       |                |         | The CALL instruction jumps to an address after storing the \nlnorule
+\!       |                |         | address of the next sequential instruction on the stack. \nl
+\! 50    | CALL.pri       |         | [STK] = CIP + 1, STK = STK $-$ \cellsize \nlnorule
+\!       |                |         | CIP = PRI \nlnorule
+\!       |                |         | jumps to the address in PRI after storing the address of the \nlnorule
+\!       |                |         | next sequential instruction on the stack. \nl
+\! 51    | JUMP           | address | CIP = address (jump to the address) \nl
+\! 52    | JREL           | offset  | CIP = CIP + offset (jump ``offset'' bytes from current \nlnorule
+\!       |                |         | position) \nl
+\! 53    | JZER           | address | if PRI == 0 then CIP = [CIP + 1]  \nl
+\! 54    | JNZ            | address | if PRI != 0 then CIP = [CIP + 1]  \nl
+\! 55    | JEQ            | address | if PRI == ALT then CIP = [CIP + 1] \nl
+\! 56    | JNEQ           | address | if PRI != ALT then CIP = [CIP + 1] \nl
+\! 57    | JLESS          | address | if PRI $<$ ALT then CIP = [CIP + 1] (unsigned) \nl
+\! 58    | JLEQ           | address | if PRI $<=$ ALT then CIP = [CIP + 1] (unsigned) \nl
+\! 59    | JGRTR          | address | if PRI $>$ ALT then CIP = [CIP + 1] (unsigned) \nl
+\! 60    | JGEQ           | address | if PRI $>=$ ALT then CIP = [CIP + 1] (unsigned) \nl
+\! 61    | JSLESS         | address | if PRI $<$ ALT then CIP = [CIP + 1] (signed) \nl
+\! 62    | JSLEQ          | address | if PRI $<=$ ALT then CIP = [CIP + 1] (signed) \nl
+\! 63    | JSGRTR         | address | if PRI $>$ ALT then CIP = [CIP + 1] (signed) \nl
+\! 64    | JSGEQ          | address | if PRI $>=$ ALT then CIP = [CIP + 1] (signed) \nl
+\! 65    | SHL            |         | PRI = PRI $<<$ ALT \nl
+\! 66    | SHR            |         | PRI = PRI $>>$ ALT (without sign extension) \nl
+\! 67    | SSHR           |         | PRI = PRI $>>$ ALT with sign extension \nl
+\! 68    | SHL.C.pri      | value   | PRI = PRI $<<$ value \nl
+\! 69    | SHL.C.alt      | value   | ALT = ALT $<<$ value \nl
+\! 70    | SHR.C.pri      | value   | PRI = PRI $>>$ value (without sign extension) \nl
+\! 71    | SHR.C.alt      | value   | ALT = ALT $>>$ value (without sign extension) \nl
+\! 72    | SMUL           |         | PRI = PRI * ALT (signed multiply) \nl
+\! 73    | SDIV           |         | PRI = PRI / ALT (signed divide), ALT = PRI mod ALT \nl
+\! 74    | SDIV.alt       |         | PRI = ALT / PRI (signed divide), ALT = ALT mod PRI \nl
+\! 75    | UMUL           |         | PRI = PRI * ALT (unsigned multiply) \nl
+\! 76    | UDIV           |         | PRI = PRI / ALT (unsigned divide), ALT = PRI mod ALT \nl
+\! 77    | UDIV.alt       |         | PRI = ALT / PRI (unsigned divide), ALT = ALT mod PRI \nl
+\! 78    | ADD            |         | PRI = PRI + ALT \nl
+\! 79    | SUB            |         | PRI = PRI $-$ ALT \nl
+\! 80    | SUB.alt        |         | PRI = ALT $-$ PRI \nl
+\! 81    | AND            |         | PRI = PRI \& ALT \nl
+\! 82    | OR             |         | PRI = PRI \vbar ALT \nl
+\! 83    | XOR            |         | PRI = PRI \lower3pt\hbox{$\hat{~}$} ALT \nl
+\! 84    | NOT            |         | PRI = !PRI \nl
+\! 85    | NEG            |         | PRI = $-$PRI \nl
+\! 86    | INVERT         |         | PRI = \lower2pt\hbox{{\tt\char126}}PRI \nl
+\! 87    | ADD.C          | value   | PRI = PRI + value \nl
+\! 88    | SMUL.C         | value   | PRI = PRI * value \nl
+\! 89/90 | ZERO.pri/alt   |         | PRI/ALT = 0 \nl
+\! 91    | ZERO           | address | [address] = 0 \nl
+\! 92    | ZERO.S         | offset  | [FRM + offset] = 0 \nl
+\! 93/94 | SIGN.pri/alt   |         | sign extent the byte in PRI or ALT to a cell \nl
+\! 95    | EQ             |         | PRI = PRI == ALT ? 1 : 0 \nl
+\! 96    | NEQ            |         | PRI = PRI != ALT ? 1 : 0 \nl
+\! 97    | LESS           |         | PRI = PRI $<$ ALT ? 1 : 0 (unsigned) \nl
+\! 98    | LEQ            |         | PRI = PRI $<=$ ALT ? 1 : 0 (unsigned) \nl
+\! 99    | GRTR           |         | PRI = PRI $>$ ALT ? 1 : 0 (unsigned) \nl
+\!100    | GEQ            |         | PRI = PRI $>=$ ALT ? 1 : 0 (unsigned) \nl
+\!101    | SLESS          |         | PRI = PRI $<$ ALT ? 1 : 0 (signed) \nl
+\!102    | SLEQ           |         | PRI = PRI $<=$ ALT ? 1 : 0 (signed) \nl
+\!103    | SGRTR          |         | PRI = PRI $>$ ALT ? 1 : 0 (signed) \nl
+\!104    | SGEQ           |         | PRI = PRI $>=$ ALT ? 1 : 0 (signed) \nl
+\!105    | EQ.C.pri       | value   | PRI = PRI == value ? 1 : 0 \nl
+\!106    | EQ.C.alt       | value   | PRI = ALT == value ? 1 : 0 \nl
+\!107/108| INC.pri/alt    |         | PRI = PRI + 1 / ALT = ALT + 1 \nl
+\! 109   | INC            | address | [address] = [address] + 1 \nl
+\! 110   | INC.S          | offset  | [FRM + offset] = [FRM + offset] + 1 \nl
+\! 111   | INC.I          |         | [PRI] = [PRI] + 1 \nl
+\!112/113| DEC.pri/alt    |         | PRI = PRI $-$ 1 / ALT = ALT $-$ 1 \nl
+\! 114   | DEC            | address | [address] = [address] $-$ 1 \nl
+\! 115   | DEC.S          | offset  | [FRM + offset] = [FRM + offset] $-$ 1 \nl
+\! 116   | DEC.I          |         | [PRI] = [PRI] $-$ 1 \nl
+\! 117   | MOVS           | number  | Copy memory from [PRI] to [ALT]. The parameter \nlnorule
+\!       |                |         | specifies the number of bytes. The blocks should not \nlnorule
+\!       |                |         | overlap. \nl
+\! 118   | CMPS           | number  | Compare memory blocks at [PRI] and [ALT]. The parameter \nlnorule
+\!       |                |         | specifies the number of bytes. The blocks should not \nlnorule
+\!       |                |         | overlap. \nl
+\! 119   | FILL           | number  | Fill memory at [ALT] with value in [PRI]. The parameter \nlnorule
+\!       |                |         | specifies the number of bytes, which must be a multiple \nlnorule
+\!       |                |         | of the cell size. \nl
+\! 120   | HALT           | 0       | Abort execution (exit value in PRI), parameters other than 0 \nlnorule
+\!       |                |         | have a special meaning. \nl
+\! 121   | BOUNDS         | value   | Abort execution if PRI $>$ value or if PRI $<$ 0\nl
+\! 122   | SYSREQ.pri     |         | call system service, service number in PRI \nl
+\! 123   | SYSREQ.C       | value   | call system service \nl
+\! 124   | FILE           | size ord name | source file information pair: name and ordinal (see below) \nl
+\! 125   | LINE           | line ord  | source line number and file ordinal (see below) \nl
+\! 126   | SYMBOL         | sze off flg name | symbol information (see below) \nl
+\! 127   | SRANGE         | lvl size| symbol range and dimensions (see below) \nl
+\! 128   | JUMP.pri       |         | CIP = PRI (indirect jump) \nl
+\! 129   | SWITCH         | address | Compare PRI to the values in the case table (whose address \nlnorule
+\!       |                |         | is passed) and jump to the associated address. \nl
+\! 130   | CASETBL        | \dots   | A variable number of case records follows this opcode, where \nlnorule
+\!       |                |         | each record takes two cells. See the notes below for details \nlnorule
+\!       |                |         | on the case table lay-out. \nl
+\!131/132| SWAP.pri/alt   |         | [STK] = PRI/ALT and PRI/ALT = [STK] \nl
+\!133    | PUSHADDR       | offset  | [STK] = FRM + offset, STK = STK $-$ \cellsize \nl
+\!134    | NOP            |         | no-operation, for code alignment \nl
+}
+\vskip 0pt plus 10pt\goodbreak
+
+\subsection{Compact file format}
+%-------------------------------
+\xrdef{p.compact.encoding} \sidx{Compact encoding} \sidx{Little Endian} \sidx{Big Endian} \sidx{Byte order}
+The default file format that the compiler generates is a very simple format that
+the abstract machine can execute directly after loading (or mapping) the file
+into memory. That is, if the machine uses {\it Little Endian\/} byte ordering.
+On a Big Endian processor all cells must be swapped.
+The alternative, ``compact binary files'', not only have a reduced size, the
+file format is also universal for Big Endian and Little Endian computers.
+
+The header of the module (see \xref{p.amx.header}) and all tables (public
+functions, native functions, libraries public variables) are not compressed.
+The data that follows these tables is encoded with variable length codes:
+every four-byte cell is encoded in one to five bytes.
+
+The highest bit of each byte is a ``continuation'' bit. If it is set, another
+bytes with seven more significant bits follows. The most significant 7 bits
+are stored first (at the lower file offset/memory address). When a series of
+bytes have been decoded, bit 6 (the next to most signification bit) of the first
+byte is repeated to fill the complete 32-bits.
+
+Decoding examples:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+0x21              0x00000021
+0x41              0xffffffc1
+0x80 0x41         0x00000041
+0x7f              0xffffffff
+|endverbatim\endlistingx
+
+
+\subsection{Cross-platform support}
+%----------------------------------
+\sidx{Little Endian} \sidx{Big Endian} \sidx{Byte order}
+There is some level of cross-platform support in the abstract machine. Both
+Big Endian and Little Endian memory addressing schemes are in common use
+today. Big Endian is the ``network byte order'', as it is used for various
+network protocols, notably the Internet protocol suite. The Intel 80x86 and
+Pentium CPU series use Little Endian addressing.
+
+The abstract machine is optimized for manipulating ``cells'', 32-bit
+quantities. Bytes or 16-bit words can only be read or written indirectly, by
+first generating an address and then use the |LODB.I| or |STRB.I|
+instructions. The |ALIGN.pri| instruction helps in generating the address.
+
+The abstract machine assumes that when multiple characters are packed in a
+cell, the first character occupies the highest bits in the cell and the last
+character is in the lowest bits of the cell. %??? \marginbox0{Packed strings: \xrefn{p.const.string}}%
+This is how the \Small\ language stores packed strings. On a Big Endian computer,
+the order of the characters is ``natural'' in the sense that the first
+character of a pack is at the lowest address and the last character is at the
+highest address. On a Little Endian computer, the order of the characters is
+reversed. When accessing the second character of a pack, you should read\slash
+write from a lower address then when accessing the first character of the
+pack.
+
+The \Small\ compiler could easily generate the required extra code to adjust
+the address for each character in the pack. The draw-back would be that a
+module written for a Big Endian computer would not run on a Little Endian
+computer and vice versa. So instead, the \Small\ compiler generates a special
+|ALIGN| instruction, whose semantics depend on whether the abstract machine
+runs on a Big Endian or a Little Endian computer. More specifically, the
+|ALIGN| instruction does nothing on a Big Endian computer and performs a
+simple bitwise ``exclusive or'' operation on a Little Endian computer.
+
+\subsection{The ``switch'' instruction and case table lay-out}
+%-------------------------------------------------------------
+The |SWITCH| instruction compares the value of |PRI| with the case value in
+every record in the associated case table and if it finds a match, it jumps
+to the address in the matching record. The |SWITCH| opcode has one parameter,
+which is the address of the case table in de code segment (i.e., the address
+is relative to |COD|). At this address, a |CASETBL| opcode should appear.
+
+Every record in a case table, except the first, contains a case value and
+a jump address, in that order. The first record keeps the number of subsequent
+records in the case table in its first cell and the ``none-matched'' jump
+address in its second cell. If none of the case values of the subsequent
+records matches |PRI|, the |SWITCH| instruction jumps to this ``none-matched''
+address. Note again that the first record is excluded in the ``number of
+records'' field in the first record.
+
+The records in the case table are sorted on their value. An abstract machine
+may take advantage of this lay-out to search through the table with a binary
+search.
+
+\subsection{Debugger support}
+%----------------------------
+\sidx{Debugger interface}
+There is limited support for source level debuggers, built-in in the
+instruction set. These opcodes are not ``regular'' in the sense that they
+have more than one parameter.
+
+The |size| parameter of the |FILE| and |SYMBOL| instructions gives the length
+of the instruction in {\it bytes}, excluding the bytes for the opcode and of
+the |size| field itself. The value of the |size| should always be a multiple of
+the size of a cell.
+
+The |name| parameter of the |FILE| and |SYMBOL| instructions is a variable
+length, zero terminated string.
+
+The |ord| parameter of the |FILE| and |LINE| instructions and the |off|
+parameter of the |SYMBOL| instruction are regular cell-sized parameters. The
+|line| parameter of the |LINE| instruction also has the size of a cell.
+
+\sidx{Symbolic information}
+The |flg| parameter of the |SYMBOL| opcode holds the class and the type of
+the symbol. This parameter is a cell-sized value, but only the lowest two bytes
+are currently defined.
+
+The type is in the lowest byte; it is one of the following values:
+\beginlist{30pt}\compactlist
+\list{1} a variable
+\list{2} a ``reference'', a variable that contains an address to another
+  variable (in other words, a pointer).
+\list{3} an array
+\list{4} a reference to an array (a pointer to an array)
+\list{9} a function
+\list{10} a reference to a function (a pointer to a function)
+\endlist
+The class is in the second byte; its value is:
+\beginlist{30pt}\compactlist
+\list{0} the symbol refers to a global variable or to a function
+\list{1} the symbol refers to a local variable with a stack relative address
+\list{2} the symbol refers to a ``static'' local variable; the address is not
+  stack relative
+\endlist
+
+The ``|off|'' parameter is relative to either:
+\beginlist{30pt}\compactlist
+\list{\tt COD} if the symbol refers to a function
+\list{\tt DAT} if the symbol refers to a global variable or a static local
+  variable
+\list{\tt FRM} if the symbol refers to a local variable
+\endlist
+
+An instruction for symbolic information is stored near the place where the
+variable or function to which it refers is created or declared. For local
+symbols, the symbolic information precedes the instructions that allocate,
+and optionally fill, the stack space for the variable(s). There is no
+run-time allocation for global symbols; therefore a symbolic debugger must
+browse through the code section to parse the symbolic information instructions
+and to collect the global symbols. This strategy was chosen as a compromise
+that minimized the overall effort to add symbolic debugging support to the
+compiler and to create a debugger. Writing the compiler was much easier when
+the symbolic information could be written where the variable was declared in
+the source code. A debugger should have a disassembler anyway. Combining these
+two resulted in decent debugger support with a low cost in terms of
+complexity.
+
+The |SRANGE| instruction extends a preceding |SYMBOL| instruction with
+information about the dimensions and the size of an array. The first parameter
+gives the dimension and the second parameter the length of that dimension.
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  For single dimension arrays, a single |SRANGE| instruction follows the
+  |SYMBOL| instruction. The first parameter of the |SRANGE| instruction
+  is zero (0) and the second parameter gives the size of the array.
+\list{\lbullet}
+  For two-dimensional arrays, two |SRANGE| instructions complete the symbol
+  definition. The first |SRANGE| instruction has its level (first parameter)
+  set to one (1) and the second parameter set to the size of the major
+  dimension. The second |SRANGE| instruction holds a level of zero and the
+  size of the minor dimension.
+\endlist
+
+When the ``|size|'' field of an |SRANGE| instruction is zero, the array size
+is indeterminate. When no |SRANGE| instruction follows a |SYMBOL| instruction
+that defines an array, the array should be assumed a single-dimensional array
+with an indeterminate size.
+
+The \Small\ compiler generates a |LINE| instruction before any other instruction
+for that line. The ``|ord|'' parameter is the file number to which the line
+relates. The \Small\ compiler generates the |FILE| instruction at the point
+where the file is read. So a debugger would gather the filenames (and their
+ordinals) in the same way (and perhaps in the same phase) as the global
+symbols.
+
+
+\appendix{Code generation notes}
+%-------------------------------
+The code generation of the \Small\ compiler is fairly straightforward (also
+due to the simplicity of the abstract machine). A few points are worth
+mentioning:
+\beginlist{1em}
+\list{\lbullet}
+  The abstract machine has instructions that the \Small\ compiler currently
+  does not generate. For example, the |LREF.pri| instruction works like the
+  dereference operator (``*'') in C/\Cpp. \Small\ does not support pointers
+  directly, but references are just pointers in disguise. \Small\ only supports
+  references in function arguments, however, which means that the ``pointer
+  operations'' in \Small\ are always stack-relative. In other words, the
+  \Small\ compiler does {\it not\/} generate the |LREF.pri| instruction, although
+  if {\it does\/} generate the |LREF.S.pri| instruction.
+
+  The abstract machine is fairly independent from the \Small\ language, even
+  though they were developed for each other. The \Small\ language can easily
+  grow in the future, possibly with a ``reference'' variable type, thereby
+  giving the |LREF.pri| instruction a reason of being. The abstract machine
+  cannot easily grow, however, because new instructions immediately make the
+  new abstract machine incompatible with previous versions. That is, programs
+  compiled for the new abstract machine won't run on the earlier release.
+
+\list{\lbullet}
+  \sidx{Extension modules}
+  For a native function, the \Small\ compiler generates a |SYSREQ.C| instruction
+  instead of the normal function call. The parameter of the |SYSREQ.C| instruction
+  is an index in the native function table. A function in \Small\ cleans up its
+  arguments that were pushed on the stack, because it returns
+  with the |RETN| instruction. The |SYSREQ.C| instruction does not remove
+  items from the stack, so the \Small\ compiler does this explicitly with a
+  |STACK| instruction behind the |SYSREQ.C| instruction.
+
+  The arguments of a native function are pushed on the stack in the same
+  manner as for a normal function.
+
+  In the ``\Small'' implementation of the abstract machine (see \xref{p.tools.amx}),
+  the ``system request'' instructions are linked to the user-installed
+  callback function. Thus, a native function in a \Small\ program issues a
+  call to a user-defined callback function in the abstract machine.
+
+\list{\lbullet}
+  At a function call, a \Small\ program pushes the function arguments onto the
+  stack in reverse order (that is, from right to left). It ends the list of
+  function arguments on the stack by pushing the number of bytes that it pushed
+  to the stack. Since the \Small\ compiler only passes cell-sized function
+  arguments to a function, the number of bytes is the number of arguments
+  multiplied by the size of a cell.
+
+  A function in \Small\ ends with a |RETN| instruction. This instruction removes
+  the function arguments from the stack.
+
+\list{\lbullet}
+  When a function has a ``reference'' argument with a default value, the
+  compiler allocates space for that default value on the heap.
+
+  For a function that has an array argument with a default value, the compiler
+  allocates space for the default array value on the heap. However, if the
+  array argument (with a default value) is also |const|, the \Small\ compiler
+  passes the default array directly (there is no need to make a copy on the
+  heap here, as the function will not attempt to change the array argument and,
+  thereby, overwrite the default value).
+
+\list{\lbullet}
+  The arguments of a function that has ``variable arguments'' (denoted with
+  the |...| operator, see the \Small\ booklet ``The Language'') %??? \xref{p.var.args}
+  are always passed by reference. For constants and expressions that are not
+  {\it lvalues\/}, the compiler copies the values to a cell that is allocated
+  from the heap, and it passes the address of the cell to the function.
+
+\list{\lbullet}
+  For the ``|switch|'' instruction, the \Small\ compiler generates a |SWITCH|
+  opcode and a case table with the |CASETBL| opcode. The case table is
+  generated in the |COD| segment; it is considered ``read-only'' data. The
+  ``none-matched'' address in the case table jumps to the instruction
+  of the |default| case, if any.
+
+  Case blocks in \Small\ are not drop through. At the end of every instruction
+  in a |case| list, the \Small\ compiler generates a jump to an ``exit'' label
+  just after the |switch| instruction. The \Small\ compiler generates the case
+  table between the code for the last |case| and the exit label. By doing this,
+  every case, including the |default| case, jumps around the case table.
+
+\list{\lbullet}
+  \xrdef{p.multdim-implementation}
+  Multi-dimensional arrays are implemented as vectors that hold the offsets to
+  the sub-arrays. For example, a two-dimensional array with four ``rows''
+  and three ``columns'' consists of a single-dimensional array with four
+  elements, where each element is the offset to a three-element
+  single-dimensional array. The total memory footprint of array is
+  $4+4\times 3$ cells. Multi-dimensional arrays in \Small\ are similar to
+  pointer arrays in C/\Cpp.
+
+  As stated above, the ``major dimension'' of multi-dimensional arrays holds
+  the offsets to the sub-arrays. This offset is in bytes (not in cells) and it
+  is relative to the address of the cell from which the offset was read.
+  Returning to the example of a two-dimensional array with four rows and three
+  columns (and assuming a cell size of four bytes), the memory block that is
+  allocated for the array starts with the four-cell array for the ``rows'',
+  followed by four arrays with each three elements. The first ``column'' array
+  starts at four cells behind the ``rows'' array and, therefore, the first
+  element of the ``rows'' array holds the value 16 ($4\times {\it cell size}$).
+  The second column array starts at three cells behind the first column array,
+  which is seven cells behind start of the rows array. The
+  offset to the second column array is stored in the {it second\/} element of
+  the rows array, and the offset of the second column relative to the second
+  cell of the rows array is {\it six\/} cells. The second value in the rows
+  array is therefore 24 ($6\times {\it cell size}$).
+
+\list{\lbullet}
+  The destructor operator takes an array with a single dimension on input, and
+  this array holds all elements of a variable that must be destructed:
+  \beginlist{1em}\compactlist
+  \list{\llbullet}
+    For simple variables, the variable is passed by reference, which makes it
+    appear as an array with one element.
+  \list{\llbullet}
+    For arrays with one dimension, the array is passed without modification
+  \list{\llbullet}
+    For arrays with two or more dimensions, the destructor operator receives
+    the address {\it behind\/} the ``indirection tables'' for the major dimensions.
+    As documented above, a multi-dimensional array starts with vectors for the
+    major dimensions that each hold the offsets to the dimension below itself.
+    The data for the array itself is packed behind these offset arrays. By
+    passing the address where the array data starts, the destructor operator
+    can access the array elements as if it were an array with a single dimension.
+  \endlist
+
+\list{\lbullet}
+  As of version 2.0, the \Small\ compiler puts a |HALT| opcode at the start of
+  the code (so at code address 0). Before jumping to the entry point (a
+  function), the abstract machine pushes a zero return address onto the stack.
+  When the entry point returns, it returns to the zero address and sees the
+  |HALT| instruction.
+
+\list{\lbullet}
+  The |sleep| instruction generates a |HALT| opcode with the error code 12
+  (``sleep''). When the abstract machine sees this special error code, it saves
+  the state of the stack\slash heap (rather than resetting it), in order to
+  be able to restart the abstract machine.
+
+\list{\lbullet}
+  \sidx{Peephole optimizer} \sidx{Optimizer}
+  The \Small\ compiler adds special comments to the assembler file (with the forms
+  ``|;$exp|'' and ``|;$par|'') to aid the peephole optimizer to make the correct
+  decisions. These comments mark the end of an ``expression statement'' or the
+  end of a function parameter. The code generated by the compiler does not carry
+  the value of a register from one statement\slash expression to another, and
+  the peephole optimizer uses this information to avoid saving registers whose
+  values will not be used again anyway.
+
+\endlist
+
+\appendix{License}
+%-----------------
+\sidx{License}
+\input license

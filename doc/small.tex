@@ -1,0 +1,242 @@
+%\def\psfonts{}
+
+\input manual
+
+\vsize=7.1 true in        % page approximately as high as it is wide
+\hsize=5.35 true in
+\marginwidth=0.93 true in
+
+\ifx \psfonts \undefined
+  %\voffset=-0.25 true in % page aligned on top
+  \voffset=3.07 true in   % page aligned on bottom
+\else
+  \voffset=2.25in % for distiller (set page size to 21.0 x 23.0 cm)
+  \special{"[/PageMode /UseOutlines /DOCVIEW pdfmark}%
+\fi
+
+\pageno = -1
+
+% TITLE PAGE
+
+\vskip30pt
+\centerline{\secfont the}
+\vskip -3pt
+\centerline{\doctitlefont Small}
+{\def\ {\hskip 0pt}
+ \centerline{\secfont b\ o\ o\ k\ l\ e\ t}
+}
+\bigskip
+\centerline{\doctitlefont The Language}
+\vskip30pt
+\centerline{\subsecfont October 2003}
+
+\vfill  % fill up to the rest of the page
+\readtocfile
+\vskip10pt \hrule \smallskip \hrule height 1.5pt \smallskip
+\rightline{\it ITB CompuPhase}
+\eject
+
+% INSIDE PAGE
+
+\headline={\vbox{%
+  \tenrm\ifodd\pageno\hfil\folio\else\folio\hfil\fi
+  \strut \hrule }}%
+
+\begingroup
+\parskip=0pt\sevenrm \everypar{\hangindent=20pt}
+``Java'' is a trademark of Sun Microsystems, Inc.
+
+``Microsoft'' and ``Microsoft Windows'' are registered trademarks of
+Microsoft Corporation.
+
+``CompuPhase'' is a registered trademarks of ITB CompuPhase.
+
+\endgroup
+
+~\vfill
+
+Copyright \copyright\ 1997--2003, ITB CompuPhase; Brinklaan 74-b, 1404GL Bussum,
+The Netherlands (Pays Bas); telephone:~(+31)-(0)35~6939~261 \lbreak
+%fax:~(+31)-(0)35 6939 293 \lbreak
+e-mail: info@compuphase.com, CompuServe:~100115,2074 \lbreak
+WWW: http://www.compuphase.com
+
+The information in this manual and the associated software are provided ``as
+is''. There are no guarantees, explicit or implied, that the software and the
+manual are accurate.
+
+Requests for corrections and additions to the manual and the software can be
+directed to ITB CompuPhase at the above address.
+
+{\font\smallfont=cmr7\smallfont Typeset with \TeX\ in the ``Computer Modern''
+ and ``Pandora'' typefaces at a base size of 11 points.}
+\eject
+
+
+% BODY
+
+\pageno = 1
+\headline={%
+          \ifhardpage
+              \let\firstmark=\empty
+              \let\botmark=\empty
+              \let\topmark=\empty
+          \fi
+          %
+          \vbox{\line{%
+          \tenrm
+          \ifodd\pageno \hfil{\it\botmark}\quad\llbullet\quad\folio
+          \else         \folio\quad\llbullet\quad{\it\firstmark}\hfil
+          \fi
+          \strut}%
+          %
+          \ifhardpage
+              \global\hardpagefalse
+          \else
+              \hrule
+          \fi
+          %
+         }}%
+
+\font\dingbats=bbding
+\def\dingbatseparator{%
+  \vskip 5pt plus 3pt minus 1pt\relax
+  {\centerline{{\dingbats\char 113}} \vskip -\parskip}%
+  \vskip 5pt plus 3pt minus 1pt\goodbreak
+}
+\halflineskip
+
+
+\chapter{Introduction}
+
+``\Small'' is a simple, typeless, 32-bit extension language with a C-like syntax.
+Execution speed, stability, simplicity and a small footprint were essential
+design criterions for both the language and the interpreter\slash abstract
+machine that a \Small\ program runs on.
+
+An application or tool cannot do or be {\it everything\/} for {\it all\/}
+users. This not only justifies the diversity of editors, compilers, operating
+systems and many other software systems, it also explains the presence of
+extensive configuration options and macro or scripting languages in
+applications. My own applications have contained a variety of little
+languages; most were very simple, some were extensive\dots\ and most needs could
+have been solved by a general purpose language with a special purpose library.
+
+The \Small\ language was designed as a flexible language for manipulating objects
+in a host application. The tool set (compiler, abstract machine) were written
+so that they were easily extensible and would run on different software\slash
+hardware architectures.
+
+\dingbatseparator
+
+%\sidx{Small C} \nameidx{Cain, Ron} \nameidx{Hendrix, James} \sidx{Dr.~Dobb's Journal}
+%Many years ago, I retyped the ``Small C'' compiler from Dr.~Dobb's Journal, by
+%Ron Cain and James Hendrix. Having just grasped the basics of the C language,
+%working on the Small C compiler was a learning experience of its own. The
+%compiler, as published, generated code for a 8080 assembler. The first
+%modification I needed to make was to adapt it to the 8086 processor. Through
+%the years that I used it (to write low level system software) I expanded the
+%compiler with new features and fixed many details. Eventually, as I was moving
+%towards bigger applications in more conventional environments, the Small C
+%compiler was replaced by main-stream development environments.
+%
+%In early 1998, I was looking for a scripting language for an animation
+%toolkit. Among the languages that I evaluated were Lua, \smallcaps{BOB},
+%Scheme, \smallcaps{REXX}, Java, ScriptEase and Forth. None of these languages
+%covered my requirements completely. I have always felt that the C language
+%is a flexible and convenient language whose basics can be mastered in a week.
+%While experimenting with Quincy (from Al Stevens\nameidx{Stevens, Al}), I
+%decided that a simplified C would probably be a good fit. I dusted off Small C.
+
+\sidx{Small C} \nameidx{Cain, Ron} \nameidx{Hendrix, James}
+\Small\ is a descendent of the original Small C by Ron Cain and James Hendrix,
+which at its turn was a subset of C. Some of the modifications that I did to
+Small C, e.g.\ the removal of the type system and the substitution of pointers
+by references, were so fundamental that I could hardly call my language a
+``subset of C'' or a ``C dialect'' anymore. Therefore, I stripped off the ``C''
+from the title and kept the name ``\Small''.
+
+\sidx{Dr.~Dobb's Journal}
+I am indebted to Ron Cain and James Hendrix (and more recently, Andy Yuen),
+and to Dr.~Dobb's Journal to get this ball rolling. Although I must have
+touched nearly every line of the original code multiple times, the Small C
+origins are still clearly visible.
+
+\dingbatseparator
+
+A detailed treatise of the design goals and compromises is in appendix
+\refcust{Rationale}; here I would like to summarize a few key points.
+As written in the previous paragraphs, \Small\ is for customizing applications,
+not for writing applications. \Small\ is weak on data structuring because
+\Small\ programs are intended to manipulate objects (text, sprites, streams, queries,
+\dots) in the host application, but the \Small\ program is, {\it by intent},
+denied direct access to any data outside its abstract machine. The only means
+that a \Small\ program has to manipulate objects in the host application is by
+calling subroutines ---so called ``native functions''--- that the host
+application provides.
+
+\Small\ is flexible in that key area: {\it calling functions}. \Small\ supports default
+values for any of the arguments of a function (not just the last),
+call-by-reference as well as call-by-value, and ``named'' as well as ``positional''
+function arguments. \Small\ does not have a ``type checking'' mechanism, by
+virtue of being a typeless language, but it {\it does\/} offer in replacement
+a ``classification checking'' mechanism, called ``tags''. The tag system is
+especially convenient for function arguments because each argument may specify
+multiple acceptable tags.
+
+For any language, the power (or weakness) lies not in the individual features,
+but in their combination. For \Small, I feel that the combination of default
+values for function arguments in combination with named arguments blend together
+to a very convenient way to call functions ---and indirectly, a convenient way
+to manipulate objects in the host application.
+
+% ??? the ambitions of Small
+%     * named parameters in combination with default arguments for everything
+%       -> name/value pairs, property settings
+%
+%       --------------------------------
+%
+%     * maximum error checking and debugging support
+
+%\dingbatseparator
+%
+%This booklet tries to unite two books:
+%\beginlist{1em}\compactlist
+%\list{\lbullet} a manual for the Small compiler and the abstract machine that I
+%  wrote;
+%\list{\lbullet} a definition of the Small language, independent of the current
+%  implementation.
+%\endlist
+%
+%These goals reflect the two main parts of the booklet entitled:
+%``Small: the language'' and ``Small: the compiler''. The third part of the
+%booklet, ``Appendices'', provides relevant supplementary information and a
+%rationale for the design.
+
+\input language \vfill\eject
+%\input tools \vfill\eject
+
+\writetocentry{chapter}{Appendices} \pdfbookmark{Appendices}
+\input applang
+
+\forceoddpage   % make sure the index starts at an odd page
+\chapter{Index}
+\sidx[see]{Alias}{External name}
+\sidx[see]{Bytecode}{P-code}
+\sidx[see]{Virtual Machine}{Abstract \midtilde}
+
+\bigskip
+\beginlist{1em}\compactlist
+\list{\lbullet} Names of persons (not products) are in {\it italics}.
+\list{\lbullet} Function names, constants and compiler reserved words are
+  in |typewriter font|.
+\endlist
+\bigskip
+
+\begingroup\parskip=0pt plus 1pt
+\hfuzz=3pt
+\readindexfile{i}
+\endgroup
+
+\bye
+

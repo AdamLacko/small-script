@@ -1,0 +1,2169 @@
+\def\undoskip{\advance \leftskip by -\funrefindent}%used in examples in the function reference
+\def\listingx{\par\begingroup \parskip=0pt \advance \leftskip by 20pt%
+              \smallskip\nobreak \thinline\nobreak \smallskip\nobreak
+}%
+\def\endlistingx{\smallskip \thinline \endgroup
+                 \vskip 2pt plus 5pt \goodbreak}%
+\def\listfile#1{\listingx\def\dofile{\compactverbatim\input #1}}%
+
+
+\chapter{Gluing Small to your product}
+%-------------------------------------
+The \Small\ language and toolset was designed to be an extension language for
+applications ---as opposed to many other scripting languages that primarily aim
+at the command shell of the operating system. Being an extension language, the
+tools an libraries of the \Small\ toolset must be {\it integrated\/} with the
+product.
+
+\vskip 3pt plus 3pt\midfigure{pict/dataflow}{300}{192}~\vskip 0pt plus 6pt\relax
+
+The two main parts of the \Small\ toolset are the compiler and the abstract machine.
+The compiler may either be linked into the host application, or it may be a separate
+process that is launched from the host application. For performance reasons, the
+abstract machine is always embedded (linked-in) inside the host application.
+
+\sidx{Default include file} \sidx{Implicit include file} \sidx{Prefix file}
+The \Small\ compiler takes a series of text files containing the code for the
+user script and definitions of the environment\slash the host application. One
+of the include files is implicit: the \Small\ compiler will automatically include
+it in any user script, but it will fail silently if that file is not present. The
+default name for that implicit include file (or ``prefix file'') is ``\smallcaps{default.inc}''.
+You can override this name with a command line option to the \Small\ compiler.
+
+For a host application, it is advised to create an implicit include file containing:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  all ``application specific'' constants;
+\list{\lbullet}
+  all native functions that the host application provides (or a core subset of
+  these native functions);
+\list{\lbullet}
+  all operloaded operators (or a core subset of these);
+\list{\lbullet}
+  all stock functions (or a core subset of these);
+\list{\lbullet}
+  forward declarations of all public functions;
+\list{\lbullet}
+  declarations of public variables (if used).
+\endlist
+\vskip-\parskip
+You will have to refer to the \Small\ booklet ``The Language'' for writing the
+declarations mentioned in the above list.
+
+The rationale behind having these declarations in an implicitly included file is
+that the definitions are now always available. This avoids errors, especially in
+the case of overloaded operators and public functions. If the definition of an
+overloaded operator is missing, in many cases the \Small\ compiler will use the
+default operator without warning. If a user makes a mistake in the declaration
+of a public function, the host application will not be able to call it, or it
+will pass the wrong parameters. A forward declaration of the public function catches
+this error, because the incorrect public function will not match the earlier
+declaration.
+
+Apart from this implicit include file, the user can also write custom include files
+and explicitly include these. In addition, a host application may supply additional
+``system'' include files that are not added to a project automatically and must be
+included explicitly.
+
+The next two chapters are on the \Small\ compiler and the abstract machine respectively.
+The most common setup is the one where the compiler runs as a separate process
+that is spawned from the host application.
+
+
+\chapter{The compiler}
+%---------------------
+\xrdef{p.compiler}
+The \Small\ compiler is currently the only translator (or parser) that
+implements the \Small\ language. The \Small\ compiler translates a text file with
+source code to a binary file for an abstract machine. The output file format
+is in appendix \refcust{Abstract machine reference}.
+
+\subsection{Usage}
+Assuming that the \Small\ compiler is called ``|sc|'' or ``|sc.exe|'', the command
+line syntax is:
+\tabto 35pt |sc <options> [filename]|
+
+The input file name is any legal filename. If no extension is given, ``|.SMA|''
+is assumed. The compiler creates an output file with, by default, the same
+name as the input file and the extension ``|.AMX|''.
+
+After switching to the directory with the sample programs, the command: \lbreak
+\tabto 35pt |sc hello| \lbreak
+should compile the very first ``hello world'' example (from the \Small\ booklet
+``The Language''). %\xref{p.ex.hello}
+{\it Should}, because the command implies that:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  the operating system can locate the ``|sc|'' program ---you may need to add
+  it to the search path;
+\list{\lbullet}
+  the \Small\ compiler is able to determine its own location in the file system
+  so that it can locate the include files ---a few operating systems do not
+  support this and require that you use the |-i| option (see below).
+\endlist
+
+\section{Options}
+%----------------
+\xrdef{p.compiler.options} \sidx{Compiler options} \sidx{Options}[compiler \midtilde]
+The options are:
+\sidx{Unicode} \sidx{ASCII} \sidx{ISO Latin-1}
+\beginlist{65pt}\compactlist
+\list{\tt -a} Assembler: generate a text file with the pseudo-assembler code
+  for the \Small\ abstract machine, instead of binary code.
+\list{\tt -C\it +/-} \sidx{Compact encoding} \sidx{Plain encoding}
+  Compact encoding of the binary file, which reduces the size
+  a the output file typically to less than half the original size. Use |-C+| to
+  enable it and |-C-| to revert to ``plain'' encoding. The option |-C| (without
+  $+$ or $-$ suffix) toggles the current setting.
+\list{\tt -c\it size} Set the character size, {\it size\/} must be 8 (for ASCII \&
+  ISO Latin-1) or 16 for Unicode.
+\list{\tt -D\it path} The ``active'' directory, where the compiler should
+  search for its input files and store its output files. This option is not
+  supported on every platform.
+\list{\tt -d\it level} Debug level: 0 = none, 1 = bounds checking and assertions
+  only, 2 = full symbolic information, 3 = full symbolic information and
+  optimizations disabled.
+  \sidx{Symbolic information}
+\list{\tt -e\it filename} Error file: set the name of the file into which the
+  compiler must write any warning and error messages; when set, there is no
+  output to the screen.
+\list{\tt -H\it value} ``|HWND|'' (Microsoft Windows version only): the compiler
+  can optionally post a message to the specified window handle upon completion
+  of the P-code generation. Host applications that invoke the \Small\ compiler can wait
+  for the arrival of this message or signal the user of the completion of the
+  compile. The message number is created with the Microsoft Windows SDK function
+  |RegisterWindowMessage| using the name ``SCNotify''. The |wParam| of the message
+  holds the compiler return code: 0=success, 1=warnings, 2=errors (plus possibly warnings),
+  3=compilation aborted by the user.
+\list{\tt -i\it pathname} Include path: set the path where the compiler can find
+  the include files. This option may appear multiple times at the command line,
+  to allow you to set several include paths.
+\list{\tt -l} Listing: perform only the file reading and preprocessing steps;
+  for example, to verify the effect of the text substitution macros and the
+  conditionally compiled\slash skipped sections.
+\list{\tt -o\it filename} Output file: set the name and path of the binary
+  output file.
+\list{\tt -P\it +/-} %\marginbox0{Packed directive: \xrefn{p.pack.p}}%
+  ``Packed strings'': with |-P+|, ``packed strings'' are the default and one
+  must use the |!"..."| syntax for unpacked strings; with |-P-|, ``unpacked strings''
+  are the default and the |!"..."| syntax is for packed strings. The option
+  |-P| (without $+$ or $-$ suffix) toggles the current setting.
+\list{\tt -p\it filename} \sidx{Prefix file}
+  Prefix file: the name of the ``prefix file'', this is
+  a file that is parsed before the input file (as a kind of implicit ``include file'').
+  If used, this option overrides the default include file ``\smallcaps{default.inc}''.
+  The |-p| option on its own (without a filename) disables the processing of any
+  implicit include file.
+\list{\tt -r\it filename} Report: enable the creation of the report and optionally
+  set the filename to which a cross-reference report will be written.
+  \sidx{XML} The report is in ``XML'' format. The {\it filename\/} parameter is
+  optional; if not specified, the report file nas the same name as the input file
+  with the extension ``|.XML|''.
+\list{\tt -S\it value} Stack size: the size of the stack and the heap in cells.
+\list{\tt -s\it value} Skip count: the number of lines to skip in the input
+  file before starting to compile; for example, to skip a ``header'' in the
+  source file which is not in a valid \Small\ syntax.
+\list{\tt -t\it value} \smallcaps{TAB} size: the number of space characters
+  to use for a \smallcaps{TAB} character. When set to zero (i.e.\ option |-t0|)
+  the compiler will no longer issue warning 217 (loose indentation).
+\list{\tt -$\backslash$} Control characters start with ``\BS'' (for the sake of
+  similarity with C, \Cpp\ and Java).
+\list{\tt -\char94} Control characters start with ``\char94'' (for compatibility
+  with earlier versions of \Small).
+\list{\tt -;\it +/-} With |-;+| every statement is required to end with a semicolon;
+  with |-;-|, semicolons are optional to end a statement if the statement is the
+  last on the line. The option |-;| (without $+$ or $-$ suffix) toggles the
+  current setting.
+\list{\it sym\tt =\it value} define constant ``{\it sym}'' with the given
+  (numeric) {\it value}, the {\it value\/} is optional;
+\list{\tt @\it filename} read (more) options from the specified ``response
+  file''.
+\endlist
+\goodbreak
+
+All options should be separated by at least one space.
+
+\sidx{Response file}
+To support operating systems with a limited command line length (e.g., Microsoft DOS),
+the \Small\ compiler supports ``response files''. A response file is a text file
+that contains the options that you would otherwise put at the command line. With
+the command:
+\tabto 35pt |sc @opts.txt prog.sma| \lbreak
+the \Small\ compiler compiles the file ``|prog.sma|'' using the options that are
+listed in the response file ``|opts.txt|''.
+
+
+\section{Configuration file}
+%---------------------------
+\xrdef{p.compiler.cfgfile} \sidx{Configuration file}
+On platforms that support it (currently Microsoft DOS, Microsoft Windows and Linux),
+the compiler reads the options in a ``configuration file'' on startup. The
+configuration file must have the name ``|sc.cfg|'' and it must reside in the
+same directory as the compiler executable program.
+
+In a sense, the configuration file is an implicit response file. Options
+specified on the command line may overrule those in the configuration file.
+
+
+\section{Errors}
+%---------------
+\subsection{Compiler errors}
+%---------------------------
+The error and warning messages produced by the compiler are described in
+the companion \Small\ booklet ``The Language''.
+
+\subsection{Run time errors}
+%---------------------------
+The function library that forms the abstract machine returns error codes.
+\marginbox0{Run-time errors: \xrefn{p.amx.errors}}%
+These error codes encompass both errors for loading and initializing a
+binary file and run-time errors due to programmer errors (bounds-checking).
+
+
+\chapter{The abstract machine}
+%-----------------------------
+\xrdef{p.tools.amx}
+\sidx[begin]{Abstract Machine eXecutive}
+The abstract machine is a C function library. There are several versions: one
+that is written in ANSI C, and optimized versions that use GNU C extensions or
+assembler subroutines.
+
+\section{Using the abstract machine}
+To use the abstract machine:
+\beginlist{1em} \compactlist
+\list{\lbullet} allocate memory for the abstract machine and load the pseudo-code
+\list{\lbullet} create an abstract machine for a compiled program with
+  |amx_Init|
+\list{\lbullet} register all native functions that the host program provides
+  with |amx_Register|
+\list{\lbullet} run the compiled script with |amx_Exec|
+\endlist
+
+\goodbreak
+The example (in C) below illustrates these steps:
+\xrdef{p.srun0}
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int main(int argc,char *argv[])
+{
+  extern AMX_NATIVE_INFO console_Natives[];
+  extern AMX_NATIVE_INFO core_Natives[];
+
+  size_t memsize;
+  void *program;
+  AMX amx;
+  cell ret = 0;
+  int err;
+
+  if (argc != 2 |dvbar (memsize = srun_ProgramSize(argv[1])) == 0)
+    ErrorExit("File open error", 0);
+
+  program = malloc(memsize);
+  if (program == NULL)
+    ErrorExit("Failed to allocate memory", 0);
+
+  err = srun_LoadProgram(&amx, argv[1], program);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Load error %d (invalid file format or version)", err);
+
+  amx_Register(&amx, console_Natives, -1);
+  err = amx_Register(&amx, core_Natives, -1);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("The program uses unavailable native functions", 0);
+
+  err = amx_Exec(&amx, &ret, AMX_EXEC_MAIN, 0);
+  if (err != AMX_ERR_NONE)
+    printf("Run time error %d on line %ld\n", err, amx.curline);
+  else if (ret != 0)
+    printf("%s returns %ld\n", argv[1], (long)ret);
+
+  free(program);
+  return 0;
+}
+|endverbatim\endlistingx
+
+The |cell| data type is defined in |AMX.H|, it usually is a 32-bit integer.
+
+The program checks first whether a command line argument is present; if so,
+the program assumes that it is the filename
+of a compiled \Small\ script, for which it determines the load size. The function
+|srun_ProgramSize| is elaborated on later in this chapter.
+
+The abstract machine needs a single memory block (for each compiled script),
+and it requires the host program to allocate the memory for it; for example,
+with |malloc|. On success, the program then loads the script into the
+allocated memory block with |srun_LoadProgram|, which in turn calls |amx_Init|
+---an implementation of |srun_LoadProgram| is below.
+
+%??? \noindent\marginbox0{Proposed native function library: \xrefn{p.functions.proposed}}%
+The program has declarations for two sets of native functions: console functions
+from |AMXCONS.C| and core functions from |AMXCORE.C|. Both these sets are
+registered with the abstract machine. Function |amx_Register| returns an error
+code if the compiled script contains unresolved calls to native functions.
+Hence, only the result of the {\it last\/} call to |amx_Register| needs to be
+checked.
+
+%??? \noindent\marginbox0{``assert'' statement: \xrefn{p.stmt.assert}}%
+The call to |amx_Exec| runs the compiled script and returns both an error code
+and a program result code. Errors that can occur during |amx_Exec| are
+division by zero, stack\slash heap collision and other common run-time errors,
+but a native function or an |assert| instruction in the source code of the
+\Small\ program may also abort the \Small\ script with an error code.
+
+The abstract machine API has no functions that read a compiled script from
+file into memory; the host program must implement these. The snippet below is
+a typical example that does this:
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int srun_LoadProgram(AMX *amx, char *filename, void *memblock)
+{
+  FILE *fp;
+  AMX_HEADER hdr;
+
+  if ((fp = fopen(filename, "rb")) == NULL )
+    return AMX_ERR_NOTFOUND;
+  fread(&hdr, sizeof hdr, 1, fp);
+  amx_Align32((unsigned long *)&hdr.size);
+  rewind(fp);
+  fread(memblock, 1, (size_t)hdr.size, fp);
+  fclose(fp);
+
+  memset(amx, 0, sizeof *amx);
+  return amx_Init(amx, memblock);
+}
+|endverbatim\endlistingx
+
+It is important to clear the |AMX| structure before calling |amx_Init|, for
+example using |memset|. If a debugger hook must be set up for the abstract
+machine, the appropriate statement would appear between |memset| and |amx_Init|.
+As an aside, the the value of |hdr.size| is the same as the file length, so one
+may just load the complete file into memory without reading the header first.
+
+The size of the binary image of the compiled script is not equal to the total
+memory requirements ---it lacks the memory requirements for the stack and the
+heap. Getting the size of the required memory block is easily achieved by
+reading the the header of the program. Below is a function that does this.
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+size_t srun_ProgramSize(char *filename)
+{
+  FILE *fp;
+  AMX_HEADER hdr;
+
+  if ((fp=fopen(filename,"rb")) == NULL)
+    return 0;
+  fread(&hdr, sizeof hdr, 1, fp);
+  fclose(fp);
+
+  amx_Align16((unsigned short *)&hdr.magic);
+  amx_Align32((unsigned long *)&hdr.stp);
+  return (hdr.magic==AMX_MAGIC) ? (size_t)hdr.stp : 0;
+}
+|endverbatim\endlistingx
+
+\sidx{Little Endian} \sidx{Byte order}
+One issue to watch out for is that multi-byte fields in the header of a
+compiled script file are in Little Endian (or ``Intel'' format). When running
+on a Big Endian CPU, |amx_Init| adjust all fields in the |AMX_HEADER| structure
+from Little Endian to Big Endian. The code snippets for |srun_LoadProgram| and
+|srun_ProgramSize| deal with the header fields {\it before\/} |amx_Init| has
+run, so these two functions must perform the proper alignment explicitly on a
+Big Endian CPU, using the functions |amx_Align16| and |amx_Align32|. If the
+code will run {\it only\/} on Little Endian machines, the calls to |amx_Align16|
+and |amx_Align32| can be removed from all code snippets.
+
+Finally, for completeness, the function |ErrorExit| is below.
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+void ErrorExit(char *message, int errorcode)
+{
+  printf(message, errorcode);
+  printf("\n");
+  exit(1);
+}
+|endverbatim\endlistingx
+
+
+\section{Controlling program execution}
+%--------------------------------------
+The code snippets presented above are enough to form an interpreter for
+\Small\ programs. A drawback, however, is that the \Small\ program runs uncontrolled once
+it is launched with |amx_Exec|. If the \Small\ program enters an infinit loop,
+for example, the only way to break out of it is to kill the complete
+interpreter ---or at least the thread that the interpreter runs in. Especially
+during development, it is convenient to be able to abort a \Small\ program that
+is running awry.
+
+\sidx{Debug hook}
+The abstract machine has a mechanism to monitor the execution of the pseudo-code
+that goes under the name of a ``debug hook''. The abstract machine calls the
+debug hook, a function that the host application provides, at specific events,
+such as the creation and destruction of variables and executing a new statement.
+Obviously, the debug hook has an impact on the execution speed of the abstract
+machine. To minimize the performance loss, the abstract machine first checks
+queries the debug hook whether it want to receive further events. The debug
+hook {\it must\/} return an acknowledging value on this initial call.
+
+\codeidx{amx_SetDebugHook}
+To install a debug hook, call |amx_SetDebugHook| before calling |amx_Init|. For
+example, in the |loadprogram| function presented earlier, add the line:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+amx_SetDebugHook(amx, srun_Monitor);
+|endverbatim\endlistingx
+between the calls to |memset| and |amx_Init|. The function |amx_Monitor|
+becomes the ``debug hook'' function that is attached to the specified abstract
+machine. A minimal implementation of this function is below:
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int AMXAPI srun_Monitor(AMX *amx)
+{
+  switch (amx->dbgcode) {
+  case DBG_INIT:
+    return AMX_ERR_NONE;
+  case DBG_LINE:
+    /* check whether an "abort" was requested */
+    return abortflagged ? AMX_ERR_EXIT : AMX_ERR_NONE;
+  default:
+    return AMX_ERR_DEBUG;
+  } /* switch */
+}
+|endverbatim\endlistingx
+
+The debug hook {\it must\/} return |AMX_ERR_NONE| on the |DBG_INIT| event,
+otherwise it will receive no further events. The only other event captured by
+this particular debug hook function is |DBG_LINE|, which notifies the start
+of a statement on a new source code line. If the debug hook returns an error
+code other than |AMX_ERR_NONE| on the |DBG_LINE| event, the abstract machine
+aborts execution and returns that error code.
+
+Exactly {\it how\/} the host program decides whether to continue running or
+to abort the abstract machine is implementation dependent. This example uses
+a global variable, |abortflagged|, that is set to a non-zero value ---by some
+magical procedure--- if the abstract machine(s) must be aborted.
+
+\codeidx{SIGINT}
+There exists a more or less portable way to achieve the ``magic'' referred to
+in the previous paragraph. If you set up a |signal| function to set the
+|abortflagged| variable to 1 on a |SIGINT| signal, you have an ``ANSI C''-approved
+way to abort an abstract machine. The snippet for the signal function appears
+below:
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+void sigabort(int sig)
+{
+  abortflagged = 1;
+  signal(sig, sigabort);        /* re-install the signal handler */
+}
+|endverbatim\endlistingx
+
+\codeidx{signal}
+And somewhere, before calling |amx_Exec|, you add the line:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+signal(SIGINT, sigabort);
+|endverbatim\endlistingx
+
+\sidx{Debug hook}
+Debug hook functions allow you to monitor stack usage, profile execution speed
+at the source line level and, well\dots\ write a debugger. Detailed information
+on the debug hook is found in appendix \refcust{Abstract machine reference} of
+this manual.%??? create a new appendix for the debug hook
+
+\subsection{Monitoring stack/heap usage}
+%---------------------------------------
+\sidx{Debug hook}
+A useful function that the debug hook can implement is to monitor how much memory
+the compiled script uses at run-time ---in other words, checking the maximum stack
+and heap usage. To this end, the example below extends the debug ``monitor''
+function of the previous section, and adds another refinement at the same time.
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int AMXAPI amx_Monitor(AMX *amx)
+{
+  int err;
+  unsigned short flags;
+  STACKINFO *stackinfo;
+
+  switch (amx->dbgcode) {
+  case DBG_INIT:
+    amx_Flags(amx,&flags);
+    return (flags & AMX_FLAG_NOCHECKS) ? AMX_ERR_DEBUG : AMX_ERR_NONE;
+
+  case DBG_LINE:
+    /* record the heap and stack usage */
+    err = amx_GetUserData(amx, AMX_USERTAG('S','t','c','k'),
+                          (void**)&stackinfo);
+    if (err == AMX_ERR_NONE) {
+      if (amx->stp - amx->stk > stackinfo->maxstack)
+        stackinfo->maxstack = amx->stp - amx->stk;
+      if (amx->hea - amx->hlw > stackinfo->maxheap)
+        stackinfo->maxstack = amx->stp - amx->stk;
+    } /* if */
+
+    /* check whether an "abort" was requested */
+    return abortflagged ? AMX_ERR_EXIT : AMX_ERR_NONE;
+
+  default:
+    return AMX_ERR_DEBUG;
+  } /* switch */
+}
+|endverbatim\endlistingx
+
+\noindent\marginbox0{Appendix \refcust{Abstract machine reference} covers the memory layout}%
+This extended version of |amx_Monitor| still checks the |abortflagged| variable
+(which is set on a Ctrl-C or Ctrl-Break signal), but on the same |DBG_LINE| code
+it also calculates the current stack and heap usage and records these in a
+structure. The used stack space is the difference between the top-of-stack and the
+current stack point; similarly, the heap usage is the difference between the
+current heap pointer and the heap bottom. More interesting is that the function
+stores this maxima of the calculated values in the variable |stackinfo|, which is
+a structure with the following definition:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+typedef struct tagSTACKINFO {
+  long maxstack, maxheap;
+} STACKINFO;
+|endverbatim\endlistingx
+
+\sidx{User value}
+The abstract machine allows a host application to set one or more ``user values''.
+In the current implementation of the abstract machine, up to four user values may
+be used. To indicate which of the user values you want to access, it is convenient
+to use the macro |AMX_USERTAG| with a four-letter identification string. In this
+example, the identification characters are `S',`t',`c',`k'.
+
+The monitor function only retrieves a pointer to the |stackinfo| structure and
+updates its fields. Elsewhere in the program, before the call to |amx_Exec|, the
+following lines are present to initialize the variable and set its address as a
+user value:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+STACKINFO stackinfo;
+memset(&stackinfo, 0, sizeof stackinfo);
+err = amx_SetUserData(&amx, AMX_USERTAG('S','t','c','k'), &stackinfo);
+|endverbatim\endlistingx
+
+In the new implementation of |amx_Monitor|, the handling of the |DBG_INIT| code
+has also changed, for an entirely different reason. The stack\slash heap monitoring
+and the program abort functionality (Ctrl-C or Ctrl-Break) depend on the regular
+arrival of |DBG_LINE| events. When a \Small\ program is compiled without debug
+information, no line number information is present in the P-code and no |DBG_LINE|
+event will be send. That renders our monitor function ineffective. This is okay,
+though, because the user or the host application has explicitly compiled {\it without\/}
+debugging checks to improve run-time preformance. However, the AMX kernel
+will still call the debug hook for other events and, with our implementation of
+|amx_Monitor|, this events have no effect except that they take time.
+
+When the debug hook returns an error code on the |DBG_INIT| event, it will not
+be called for any other events. Since our debug hook only ``listens'' to the
+|DBG_LINE| event and that event is non-functional when the P-code contains no
+line number information, we might as well return an error code on |DBG_INIT|
+in that situation. The upshot is that the overhead of the function call is
+avoided.
+
+\subsection{Preparing for memory-hungry scripts}
+%-----------------------------------------------
+The core run-time files that build the abstract machine executive (|AMX.C| and
+|AMXEXEC.ASM|) are specifically designed {\it not\/} to use dynamic memory or
+to rely on a particular memory allocator.\stdfootnote{There are a few
+``violations'' of this design: the ``property'' functions in AMXCORE.C call
+``malloc''; that said, native functions are considered {\sevenit non-core\/}
+functions.\par} The reasoning behind this design is that the abstract machine
+executive is made to be linked into host applications and, in practice,
+diverse host applications use dissimilar memory allocation schemes ---from
+instrumented versions of |malloc| to garbage collection algorithms.
+
+The drawback of this design, however, is that the address range that a
+compiled script runs in cannot easily grow: the executive itself cannot grow
+the memory block because it knows nothing about the memory allocator that the
+host program uses, and the host program will have to reach into the internals
+of the abstract machine executive after it resizes the memory block. Already
+determining {\it when\/} to grow the block is involved. Hence, the address range
+that a script can use should be seen as ``fixed'' or static.
+
+\noindent\marginbox0{\#pragma dynamic: see ``The Language''\lbreak Compiler options: \xrefn{p.compiler.options}}%
+The problem is that the host application cannot foresee what kind of scripts
+users will write and how much breathing room their scripts need. A user may set
+this value him/herself with |#pragma dynamic|, but this involves guesswork and
+it is not user friendly. When the host program also runs the compiler, it can
+set the heap\slash stack size to a value that is large enough for every
+imaginable script, but at the risk that expanding the memory footprint of the
+host program by this size impacts the general performance of the complete system
+(read ``causes excessive swapping'').
+
+Modern operating systems allow for an efficient solution for this dilemma:
+allocate the memory address range without reserving the memory and
+subsequently reserve (or ``commit'') the memory on an as-needed basis. The
+code snippets in this section are for the ``Win32'' family of Microsoft
+Windows, but the concept applies to many operating systems that provide
+virtual memory.
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int main(int argc,char *argv[])
+{
+  extern AMX_NATIVE_INFO console_Natives[];
+  extern AMX_NATIVE_INFO core_Natives[];
+
+  size_t memsize;
+  void *program;
+  AMX amx;
+  cell ret = 0;
+  int err;
+
+  if (argc != 2 |dvbar (memsize = srun_ProgramSize(argv[1])) == 0)
+    ErrorExit("File open error", 0);
+
+  program = VirtualAlloc(NULL, memsize, MEM_RESERVE, PAGE_READWRITE);
+  if (program == NULL)
+    ErrorExit("Failed to reserve memory", 0);
+
+  __try {
+
+    err = srun_LoadProgram(&amx, argv[1], program);
+    if (err != AMX_ERR_NONE)
+      ErrorExit("Load error %d (invalid file format or version)", err);
+
+    amx_Register(&amx, console_Natives, -1);
+    err = amx_Register(&amx, core_Natives, -1);
+    if (err != AMX_ERR_NONE)
+      ErrorExit("The program uses unavailable native functions", 0);
+
+    err = amx_Exec(&amx, &ret, AMX_EXEC_MAIN, 0);
+    if (err != AMX_ERR_NONE)
+      printf("Run time error %d on line %ld\n", err, amx.curline);
+    else if (ret != 0)
+      printf("%s returns %ld\n", argv[1], (long)ret);
+
+  } __except (srun_CommitMemory(GetExceptionInformation(), program, memsize)){
+    /* nothing */
+  } /* try */
+
+  VirtualFree(program, memsize, MEM_DECOMMIT);
+  VirtualFree(program, 0, MEM_RELEASE);
+  return 0;
+}
+|endverbatim\endlistingx
+
+\codeidx{VirtualAlloc}
+The above |main| function is a variation of the one on \xref{p.srun0}. Instead
+of |malloc| and |free|, it calls the Win32 functions |VirtualAlloc| and
+|VirtualFree|. The call to |VirtualAlloc| reserves an address range, but does
+not ``commit'' the memory, meaning that no memory is allocated at this point.
+Later, one may commit chunks of memory inside this address range, with the
+advantage that one can now specify the memory address that must be commited.
+At the end of the program, |VirtualFree| must be called twice, as the function
+can only release memory in one call if it has either been fully committed or
+fully decommitted. The first call to |VirtualFree| decommits all committed
+memory.
+
+When a program tries to access memory that is not committed, an ``access violation''
+exception occurs. Function |main| catches exceptions and handles them in the
+function below. Note that the function carefully checks whether it gets an
+exception that it can handle. \Small\ typically accesses elements in cells, so
+that is the default size to commit (variable |elemsize| in the code snippet
+below), but this size is adjusted if it would exceed the allocate memory range.
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+DWORD srun_CommitMemory(struct _EXCEPTION_POINTERS *ep, void *memaddr,
+                        size_t memsize)
+{
+  void *virtaddr;
+  int elemsize;
+
+  if (ep->ExceptionRecord->ExceptionCode != EXCEPTION_ACCESS_VIOLATION)
+    return EXCEPTION_CONTINUE_SEARCH;
+
+  virtaddr = (void*)ep->ExceptionRecord->ExceptionInformation[1];
+  if (virtaddr < memaddr |dvbar virtaddr >= ((char*)memaddr + memsize))
+    return EXCEPTION_CONTINUE_SEARCH;
+
+  elemsize = sizeof(cell);
+  if ((char*)virtaddr + elemsize > (char*)memaddr + memsize)
+    elemsize = ((char*)memaddr + memsize) - (char*)virtaddr;
+
+  if (VirtualAlloc(virtaddr, elemsize, MEM_COMMIT, PAGE_READWRITE) == NULL)
+    return EXCEPTION_CONTINUE_SEARCH;
+
+  return EXCEPTION_CONTINUE_EXECUTION;
+}
+|endverbatim\endlistingx
+
+With these modifications, a host program (or a user) can now specify a size
+for the stack and heap of a few megabytes when compiling a script file, and be
+assured that {\it only\/} the memory that the program {\it really\/} uses is
+ever allocated. Microsoft Windows commits memory blocks in ``pages'', which are
+4 kBytes in size. That is, although the above code commits only one |cell| (4 bytes),
+a range of 1024 cells get committed.
+
+A host program may choose to periodically decommit all memory for a
+running script, in order to reduce the memory footprint of the script (this is
+not implemented in the above code snippet).
+
+
+\section{Calling ``public'' functions}
+%-------------------------------------
+\sidx{Calling public functions} \sidx{Public functions}[calling \midtilde]
+The implementations presented so far would only call the function |main| in a
+compiled \Small\ script. Many implementations require multiple entry points and
+need to be able to pass input parameters to that entry point. We need two steps
+to enable this:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  The script must provide one or more public functions.
+\list{\lbullet}
+  The host program must be adapted to locate the public function and pass its
+  index (and parameters) to |amx_Exec|.
+\endlist
+
+To start with the latter step, the host program is adapted so that it finds a
+particular public function by name. Function |amx_Exec| takes an index of a
+public function as a parameter; the previous examples used the special
+constant |AMX_EXEC_MAIN| to start with the ``main'' entry point. If you know
+the name of the public function, |amx_FindPublic| returns its index. For this
+purpose, include the snippet below before the call to |amx_Exec| (it assumes
+that the name of the public function is in the variable |argv[2]|):
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+  err = amx_FindPublic(&amx, argv[2], &index);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Public function is not present", 0);
+|endverbatim\endlistingx
+
+\sidx{Passing arguments} \sidx{Argument passing}
+A public function may require input arguments. If so, these should be passed to
+|amx_Exec|. For numeric ``value'' parameters, this involves no more than adding
+the parameters at the end of the parameter list of |amx_Exec| and adjusting the
+fourth parameter (``|numparams|'') to reflect the number of parameters. When the
+parameter is a reference parameter or an array, there is a complexity: these
+parameters are passed by address, but the abstract machine cannot access memory
+owned by the host. Instead, the host program must allocate memory in the address
+space of the abstract machine and copy the parameter into this memory block.
+For example, to pass a string from |argv[3]| in the host program to a public
+function in the abstract machine, use a snippet like the following:
+
+\sidx{Passing arguments}[strings] \sidx{Argument passing}[strings]
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+  err = amx_Allot(&amx, strlen(argv[3]) + 1, &amx_addr, &phys_addr);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Failed to allocate AMX memory", 0);
+  amx_SetString(phys_addr, argv[3], 0);
+|endverbatim\endlistingx
+
+The above snippet passes the string as an ``unpacked'' string, meaning that in
+the script, every cell holds one character. Therefore, the snippet allocates a
+number of cells equal to the string length, plus one for the zero terminator.
+The |amx_Allot| function returns two addresses; here stored in |amx_addr| and
+|phys_addr|. The |amx_addr| variable contains the memory address relative to
+the abstract machine ---this is the address that must be passed to |amx_Exec|.
+The |phys_addr| variable is the address that the host program uses to store
+data into the abstract machine or to read the results. In this example, the
+host program simply calls |amx_SetString| to store the |argv[3]| string into
+the abstract machine's memory.
+
+\sidx{Variable arguments} \sidx{Functions}[variable arguments]
+\noindent\marginbox0{See the Small booklet ``The Language'' for details on variable arguments}%
+If a public function has a variable argument list, all parameters in this list
+must be passed by reference. That is, you have to follow the above procedure for
+any argument that falls in the variable argument list of the public function.
+
+Below is the complete |main| function of a run-time that allows you to execute
+any public function and pass in a string. This program is, again, a modification
+of the example program on \xref{p.srun0}. It includes the calls to |amx_FindPublic|
+and |amx_Allot| mentioned above, and it also shows how to pass one extra
+paramater through |amx_Exec|.
+
+\xrdef{p.srun.rot13}
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int main(int argc,char *argv[])
+{
+  extern AMX_NATIVE_INFO console_Natives[];
+  extern AMX_NATIVE_INFO core_Natives[];
+
+  size_t memsize;
+  void *program;
+  AMX amx;
+  int index, err;
+  cell amx_addr, *phys_addr;
+  char output[128];
+
+  if (argc != 4)
+    ErrorExit("Usage: srun4 <filename> <function> <param>", 0);
+  if ((memsize = srun_ProgramSize(argv[1])) == 0)
+    ErrorExit("File open error", 0);
+
+  program = malloc(memsize);
+  if (program == NULL)
+    ErrorExit("Failed to allocate memory", 0);
+
+  err = srun_LoadProgram(&amx, argv[1], program);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Load error %d (invalid file format or version)", err);
+
+  amx_Register(&amx, console_Natives, -1);
+  err = amx_Register(&amx, core_Natives, -1);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("The program uses unavailable native functions", 0);
+
+  err = amx_FindPublic(&amx, argv[2], &index);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Public function is not present", 0);
+
+  err = amx_Allot(&amx, strlen(argv[3]) + 1, &amx_addr, &phys_addr);
+  if (err != AMX_ERR_NONE)
+    ErrorExit("Failed to allocate AMX memory", 0);
+  amx_SetString(phys_addr, argv[3], 0);
+
+  err = amx_Exec(&amx, NULL, index, 1, amx_addr);
+  if (err != AMX_ERR_NONE)
+    printf("Run time error %d on line %ld\n", err, amx.curline);
+
+  amx_GetString(output, phys_addr);
+  amx_Release(&amx, amx_addr);
+  printf("%s returns %s\n", argv[1], output);
+
+  free(program);
+  return 0;
+}
+|endverbatim\endlistingx
+
+When the program returns from |amx_Exec|, the host program can inspect the
+returned value(s) and free the allocated space. The program presented here uses
+|amx_GetString| to retrieve the string that the public function (possibly)
+modified. The function |amx_Release| frees the memory allocated by |amx_Allot|.
+A single call to |amx_Release| can undo multiple |amx_Allot|'s, see the
+function description at \xref{p.amx.Release}.
+
+To demonstrate this program, we must also write a script that contains a public
+function and that accepts a string parameter. Below is a variation of the ``ROT13''
+example script from the \Small\ booklet ``The Language''. %???  \xref{p.ex.rot13}
+The essential modification is the keyword |public| that is prefixed to the
+function name ``|rot13|''.
+
+\sidx{ROT13 encryption} \codeidx{rot13}
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+main()
+    {
+    printf("Please type the string to mangle: ")
+
+    new str[100]
+    getstring(str, sizeof str)
+    rot13(str)
+
+    printf("After mangling, the string is: ^"%s^"^n", str)
+    }
+
+public rot13(string[])
+    {
+    for (new index = 0; string[index]; index++)
+        if ('a' <= string[index] <= 'z')
+            string[index] = (string[index] - 'a' + 13) % 26 + 'a'
+        else if ('A' <= string[index] <= 'Z')
+            string[index] = (string[index] - 'A' + 13) % 26 + 'A'
+    }
+|endverbatim\endlistingx
+
+With these modifications, and supposing that we have built the C program to an
+executable with the name ``srun'', we can execute the script with:
+\tabto 35pt |srun rot13.amx rot13 hello-world|
+
+Although the ``ROT13'' script contains a |main| function, it won't execute in
+this particular case.
+
+\sidx{Passing arguments}[arrays] \sidx{Argument passing}[arrays]
+Essentially the same procedure as outlined above applies to the passing of
+non-string arrays to a public function:
+\beginlist{1em}\compactlist
+\list{\lnumber}
+  allocate space for the array in the abstract machine with |amx_Allot|;
+\list{\lnumber}
+  copy the array into the abstract machine using the ``physical address'' pointer
+  that |amx_Allot| returned;
+\list{\lnumber}
+  call the public function, passing the ``AMX address'' pointer as a parameter;
+\list{\lnumber}
+  optionally copy the array back, out of the abstract machine ---again using the
+  ``physical address'' pointer;
+\list{\lnumber}
+  free the memory block in the abstract machine with |amx_Release|.
+\endlist
+
+The implementation of ``srun'' that calls the ROT13 script (\xref{p.srun.rot13})
+uses the functions |amx_SetString| and |amx_GetString| to copy strings into and
+out of the abstract machine. The reasons for using these functions has to do with
+the difference in memory layout of strings in C/\Cpp\ versus \Small. When passing
+arrays of integers (|cell|-sized) or floating point values, you can just use the
+standard C functions |memmove| and |memcpy|. \codeidx{memmove} \codeidx{memcpy}
+
+For an example, imagine a host application that does some statistical processing
+of lists of floating point numbers, and that allows users of the application to
+``customize'' the operation by providing an alternative implementation of key
+routines in a \Small\ script. In particular, the host application allows user to
+override the ``mean'' calculation with a script that contains the public function
+|CalculateMean| with the following signature:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+public Float: CalculateMean(Float: values[], items)
+|endverbatim\endlistingx
+
+This is what the host application does (I am showing only a snippet of code here,
+rather than a complete implementation of a C/\Cpp\ function; refer to \xref{p.srun.rot13}
+for the context of this snippet):
+
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+  float Values[];   /* array with the numbers to get the mean of */
+  int Number;       /* number of elements in "Values" */
+
+  AMX amx;          /* the abstract machine, already initialized */
+  int index, err;
+  cell amx_addr, *phys_addr;
+
+  err = amx_FindPublic(&amx, "CalculateMean", &index);
+  if (err != AMX_ERR_NONE) {
+    /* custom function not present, use a built-in function to
+     * calculate the mean
+     */
+    Mean = CalculateStdMean(Values, Number);
+  } else {
+
+    /* 1. allocate memory in the abstract machine */
+    err = amx_Allot(&amx, Number, &amx_addr, &phys_addr);
+    if (err == AMX_ERR_NONE) {
+
+      /* 2. copy values into the abstract machine */
+      memcpy(phys_addr, Values, Number * sizeof(cell));
+
+      /* 3. call the public function with the "AMX address" */
+      err = amx_Exec(&amx, (cell*)&Mean, index, 2, amx_addr, Number);
+      if (err != AMX_ERR_NONE)
+        printf("Run time error %d on line %ld\n", err, amx.curline);
+
+      /* 4. we could copy the array back here, but it is not very
+       *    useful in this particular case */
+
+      /* 5. release memory in the abstract machine */
+      amx_Release(&amx, amx_addr);
+
+    } else {
+      printf("Failed to allocate %d cells\n", Number);
+      Mean = 0.0;
+    } /* if */
+
+  } /* if */
+|endverbatim\endlistingx
+
+\sidx{Mean}
+This example may appear a rather abstract twist of mind: ``what kind of alternative
+{\it mean\/} function can a user invent that is not absurd or fraudulent'' ---until
+you dive into the subject and discover a full and complex world behind a simple
+concept as ``the mean''. The most well known and most frequently used kind of
+average, which has become synonymous with {\it the mean}, is the ``arithmetic
+average'':\stdfootnote{Other kinds are the geometric average, the harmonic average
+and the ``root mean square''.\par} the sum of all elements divided by the number
+of elements. It is well known that the arithmetic average is sensitive to outliers,
+e.g.\ coming from noisy data, and in such cases the ``median'' \sidx{Median} is
+often proposed as a stable alternative to the (arithmetic) mean.
+
+\sidx{Median} \sidx{Trimmed mean}
+The median and the mean are the two extremities of the (arithmetic) ``trimmed
+mean''. The trimmed mean throws out the lowest and the highest few samples and
+calculates the arithmetic average over the remainder. The number of discarded samples
+is a parameter of the {\it trimmed mean\/} function: if you discard zero samples
+what you get is the standard mean and if you discard all but one sample, the
+remaining sample is the median.
+
+\sidx{Olympic mean}
+The example implementation of a trimmed mean below discards only the top and
+bottom samples. This particular configuration of the trimmed mean has become
+known as the ``Olympic mean'', referring to a similar procedure that is used to
+establish the average performance of athletes.
+
+\xrdef{p.ex.trimmed}
+\bigskip\listfile{../examples/trimmed.sma}
+\verbatim|parskip=0pt|smalltt|Ccode|dofile|endverbatim\endlistingx
+
+This concludes handling array and string arguments to a public function by the
+host application; what is left are {\it reference arguments}. This does not need
+an in-depth discussion, however, because the host application can handle a reference
+argument as an array argument with the size of one (1) |cell|.
+
+% ??? handling latent functions
+
+\chapter{Extension modules}
+%--------------------------
+\xrdef{p.extension.modules}
+\sidx{Extension modules} \sidx{Functions}[native \midtilde] \sidx{Native functions}
+An extension module provides a \Small\ program with application-specific
+(``native'') functions. Creating an extension module is a three-step process:
+\beginlist{15pt}\compactlist
+\list{\lnumber} writing the native functions (in C);
+\list{\lnumber} making the functions known to the abstract machine;
+\list{\lnumber} writing an include file that declares the native functions
+  for the \Small\ programs.
+\endlist
+
+\subsection{1. Writing the native functions}
+%-------------------------------------------
+Every native function must have the following prototype:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+cell AMX_NATIVE_CALL func(AMX *amx, cell *params);
+|endverbatim\endlistingx
+The identifier ``|func|'' is a placeholder for a name of your choice. The
+|AMX| type is a structure that holds all information on the current state of
+the abstract machine (registers, stack, etc.); it is defined in the include
+file |AMX.H|. The symbol |AMX_NATIVE_CALL| holds the calling convention for
+the function. The file |AMX.H| defines it as an empty macro (so the default
+calling convention is used), but some operating systems or environments require
+a different calling convention. You can change the calling convention either
+by editing |AMX.H| or by defining the |AMX_NATIVE_CALL| macro before including
+|AMX.H|. Common calling conventions are |_cdecl|, |_far _pascal| and
+|_stdcall|.
+
+The |params| argument points to an array that holds the parameter list of the
+function. The value of |params[0]| is the number of {\it bytes\/} passed to
+the function (divide by the size of a |cell| to get the number of parameters
+passed to the function); |params[1]| is the first argument, and so forth.
+
+For arguments that are passed by reference, function |amx_GetAddr| converts
+the ``abstract machine'' address from the ``|params|'' array to a physical
+address. The pointer that |amx_GetAddr| returns lets you access variables
+inside the abstract machine directly. Function |amx_GetAddr| also verifies
+whether the input address is a valid address.
+
+\noindent\marginbox0{See \xref{p.multdim-implementation} for the memory lay-out
+of arrays and \xref{p.ex.array.wrapper} for an example}%
+Strings, like other arrays, are always passed by reference. However, neither
+packed strings nor unpacked strings are universally compatible with C strings
+(on Big Endian computers, packed strings are compatible with C strings).
+Therefore, the abstract machine API provides two functions to convert C strings
+to and from \Small\ strings: |amx_GetString| and |amx_SetString|.
+
+A native function may abort a program by calling |amx_RaiseError| with
+a non-zero code. The non-zero code is what |amx_Exec()| returns.
+
+\goodbreak
+\subsection{2. Linking the functions to the abstract machine}
+%------------------------------------------------------------
+An application uses |amx_Register| to make any native functions known to the
+abstract machine. Function |amx_Register| expects a list of |AMX_NATIVE_INFO|
+structures. Each structure holds a pointer to the name of the native function
+and a function pointer.
+
+Below is a full example of a file that implements two simple native functions:
+raising a value to a power and calculating the square root of a value. The list
+of |AMX_NATIVE_INFO| structures is near the bottom of the example ---it is wrapped
+in an ``initialization function'' called |amx_InitPower|.
+
+\goodbreak
+\bigskip\listfile{../power.c}
+\verbatim|parskip=0pt|smalltt|Ccode|dofile|endverbatim\endlistingx
+
+In your application, you must add a call to |amx_InitPower| with the ``|amx|''
+structure as a parameter, as shown below:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+err = amx_InitPower(&amx);
+|endverbatim\endlistingx
+
+All earlier examples of ``host applications'' for the \Small\ abstract machine
+have called |amx_Register| directly, referring to external arrays like
+|core_Natives| and |console_Natives| (being the native function tables). In
+many situations, the strategy taken here (calling a function provided by the
+extension module to handle the native function registration) is preferable:
+\beginlist{1em}\compactlist
+\list{\lbullet}
+  \sidx{External scope}
+  Giving a function ``external'' scope is safer than doing so with a variable;
+  as opposed to functions, variables can be (accidentally) tampered with.
+  Observe, by the way, that only the functions |amx_InitPower| and |amx_ExitPower|
+  have external scope in the above example.
+\list{\lbullet}
+  An extension module may require additional ``start-up'' code. Doing this in
+  the same routine that also registers the native functions makes sure that
+  all initialization steps occur, and in the correct order.
+\list{\lbullet}
+  An extension module may also require clean-up code. When all extension modules
+  provide ``init'' and ``exit'' functions, the rules for adding an extension module
+  to the host application become universal. This is especially so if there is
+  a naming convention for the ``init'' and ``exit'' functions. For this reason,
+  even though the ``power'' extension module does not require any clean-up, an
+  empty clean-up function |amx_ExitPower| was added.
+\endlist
+
+
+\subsection{3. writing an include file for the native functions}
+%---------------------------------------------------------------
+The first step implements the native functions and the second step makes the
+functions known to the abstract machine. Now the third step is to make the
+native functions known to the \Small\ compiler. To that end, one writes an
+include file that contains the prototypes of the native functions and all
+constants that may be useful in relation to the native functions.
+
+\goodbreak
+\xrdef{p.ex.power.natives}
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+native power(value, exponent);
+native sqroot(value);
+|endverbatim\endlistingx
+
+\section{Writing ``wrappers''}
+%--------------------------------
+\sidx{Wrapper functions}
+The preceding sections described the implementation of a few functions that
+were specially crafted as ``native functions'' for the \Small\ abstract machine.
+It is common practice, however, that instead of writing {\it new\/} functions for
+\Small, you will make a set of existing C/\Cpp\ functions available to \Small.
+To ``glue'' the existing functions to \Small, you need to embed each function in
+a tiny new function with the required ``native function'' signature. Such new
+functions are called wrapper functions.
+
+Wrapper functions also illustrate the issues in passing parameters accross
+C/\Cpp -- \Small\ boundaries, plus that they provide templates for writing any
+kind of native functions.
+
+\subsection{Pass-by-value, the simplest case}
+%--------------------------------------------
+The \Small\ toolset was designed to make the interface to native functions quick
+and easy. To start with an example, I will make a wrapper for the function |isalpha|
+from the standard C library. The prototype for |isalpha| is:
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int isalpha(int c);
+|endverbatim\endlistingx
+\goodbreak
+Wrapping |isalpha| into a native function, results in the code:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+static cell n_isalpha(AMX *amx, cell *params)
+{
+  return |begingroup|sevenit isalpha(|endgroup (int)params[1] |begingroup|sevenit);|endgroup
+}
+|endverbatim\endlistingx
+
+In addition to writing the above wrapper function, you must also still add it to a
+table for |amx_Register| and add it to an include file for the \Small\ compiler.
+
+\subsection{Floating point}
+%--------------------------
+Wrapping functions like |isalpha| represent the simplest case: functions that
+take parameters with an ``integer'' type and that return ``void'' or an integer
+type. When either any of the parameters or the return type of the existing function
+are a floating point type, these parameters must be cast to\slash from the ``|cell|''
+type that \Small\ uses ---but this cast must happen through a special macro.
+For example, consider the function |sin| with the prototype:
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+double sin(double angle);
+|endverbatim\endlistingx
+\goodbreak
+Its wrapper function is:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+static cell n_sin(AMX *amx, cell *params)
+{
+  float r = |begingroup|sevenit sin( |endgroup amx_ctof(params[1]) |begingroup|sevenit);|endgroup
+  return amx_ftoc(r);
+}
+|endverbatim\endlistingx
+
+\sidx{Type cast}
+The symbols |amx_ctof| and |amx_ftoc| are {\it macros\/} that cast a ``|cell|''
+type into ``|float|'' and vice versa, but in contrast to the standard type casts
+of C/\Cpp\ they do not change the bit representation of the value that is cast.
+A normal type cast, therefore, changes the value\stdfootnote{This behaviour is
+quite apparent in the cast from floatint point to integer, which {\sevenit truncates\/}
+the value to its integral part.\par} and what is needed is a cast that leaves
+the value intact ---which is what |amx_ctof| and |amx_ftoc| do.
+
+\subsection{Strings}
+%-------------------
+\sidx{Big Endian} \sidx{Little endian}
+Wrapping functions that take string parameters is more involved, because the
+memory layout of a string in the \Small\ abstract machine is probably different
+than that of C/\Cpp.\stdfootnote{On a Big Endian CPU platform {\sevenit packed\/} strings have
+the same memory layout in Small and in C/C++, {\sevenit unpacked\/} strings and
+all strings on a Little Endian CPU have a different layout.\par} This means that
+strings must be converted between the native (wrapper) function and the \Small\ abstract
+machine. The standard C function |access| has the prototype:
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int access(const char *filename, int flags);
+|endverbatim\endlistingx
+\goodbreak
+Its wrapper function is:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+static cell n_access(AMX *amx, cell *params)
+{
+  int r = 0, length;
+  cell *cstr;
+  char *pname;
+
+  amx_GetAddr(amx, params[1], &cstr);
+  amx_StrLen(cstr, &length);
+  if ((pname = malloc(length + 1)) != NULL) {
+    amx_GetString(pname, cstr);
+    r = |begingroup|sevenit access( |endgroup pname, (int)params[2] |begingroup|sevenit);|endgroup
+    free(pname);
+  } /* if */
+  return r;
+}
+|endverbatim\endlistingx
+
+\sidx{Data section} \sidx{Sections}[data \midtilde]
+When the \Small\ abstract machine passes an array to a native function, it passes
+the base address of the array. This address, however, is relative to the data section
+of the abstract machine; it is not a pointer that the native function (in C/\Cpp)
+can use as is. The function |amx_GetAddr| translates an ``abstract machine address''
+(in |params[1]| in the above example) to a physical pointer for the host application
+(i.e.\ |cstr|).
+
+The next step is to convert the string for the format as it is stored in the abstract
+machine to what C/\Cpp\ understands. Function |amx_GetString| does that, but before
+using it, you have to check the string length first ---hence, |amx_StrLen|.
+Function |amx_GetString| recognizes both packed and unpacked strings, by the way.
+
+If you need to write a string back into the data section of the abstract machine,
+you can use the |amx_SetString| companion function.
+
+When making wrappers by hand, the macro |amx_StrParam| may be convenient because
+it implements the ``scaffolding code''. The wrapper for the function |access| would
+become:
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+static cell n_access(AMX *amx, cell *params)
+{
+  int r = 0;
+  char *pname;
+
+  amx_StrParam(amx, params[1], pname);
+  if (pname != NULL)
+    r = |begingroup|sevenit access( |endgroup pname, (int)params[2] |begingroup|sevenit);|endgroup
+  return r;
+}
+|endverbatim\endlistingx
+\codeidx{malloc} \codeidx{alloca}
+The wrapper function uses the C function |alloca| to allocate memory, instead of
+|malloc|. The advantage of |alloca| is that memory does not need to be freed
+explicitly. Function |alloca| is not in the ANSI C standard, however, and it may
+not be available on your platform.
+
+\subsection{Pass-by-reference}
+%-----------------------------
+\sidx{Pass by reference}
+C/\Cpp\ functions that return values through pointers need a similar wrapping as
+strings: \Small\ does not understand pointers, but it supports call-by-reference.
+The example function for this wrapper is the C/\Cpp\ function |time|, with prototype:
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+time_t time(time_t* timer);
+|endverbatim\endlistingx
+I am making the bold assumption that |time_t| is represented as a 32-bit integer
+(which as |cell| is as well). The wrapper function becomes:
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+static cell n_time(AMX *amx, cell *params)
+{
+  time_t r;
+  cell *cptr;
+
+  assert(sizeof(cell) == sizeof(time_t));
+  amx_GetAddr(amx, params[1], &cptr);
+  r = |begingroup|sevenit time( |endgroup (time_t*)cptr |begingroup|sevenit);|endgroup
+  return r;
+}
+|endverbatim\endlistingx
+
+\sidx{Data section} \sidx{Sections}[data \midtilde]
+In the above wrapper function, function |time| writes directly into a memory |cell|
+in the data section of the abstract machine. This is allowed only if the value
+that the function writes has the same size as a |cell| (32-bit). For good measure,
+the above wrapper verifies this with an |assert| statement. If the size that the
+C/\Cpp\ function returns differs from that of a |cell|, the wrapper function
+must convert it to a |cell| before writing it through the pointer obtained by
+|amx_GetAddr|.
+
+\subsection{Arrays}
+%------------------
+\xrdef{p.ex.array.wrapper}
+\sidx{Native functions}[passing arrays]
+For the interface of the abstract machine to the host application, a ``reference
+parameter'' (see the preceding section) is identical to an array with one element.
+Writing wrappers for functions that take an array is therefore similar to writing
+a function that handles a reference argument. With single dimensional arrays,
+the main difference is that the pointer returned by |amx_GetAddr| now points to
+the first cell of potentionally many cells.
+
+\sidx{Multi-dimensional arrays}
+\noindent\marginbox0{Memory lay-out of arrays: \xrefn{p.multdim-implementation}}%
+Multi-dimensional arrays must be handled differently, though, as the memory lay-out
+differs between C/\Cpp\ and \Small. In comparison with C/\Cpp, two-dimensional arrays in
+\Small\ are {\it prefixed\/} with a single-dimensional array that holds memory offsets to
+the start of each ``row'' in the two-dimensional array. This extra list allows
+each row to have a different column length. In C/\Cpp, each column in a two-dimensional
+array must have the same size.
+
+If you are writing a wrapper function for an existing C function, as opposed to
+writing\slash adapting a native function specifically to exploit \Small's features,
+you will not be concerned with variable column-length arrays ---C/\Cpp\ does not
+support them, so your native function will not allow them. All that needs to be
+done, then, is to skip the prefixed ``column offsets'' list after getting the
+address from |amx_GetAddr|.
+
+%??? two-dimensional arrays: OpenGL (matrix multiplication) function
+%??? pointers that are really handles
+%??? wrapping class methods (C++ interface)
+%??? automating wrappers, using SWIG
+
+\section{Customizing the native function dispatcher}
+%---------------------------------------------------
+\xrdef{p.amx.dispatcher}
+\sidx{Native function dispatcher}
+The above three steps to link native functions to the abstract machine imply
+that you use the default native function dispatcher. The default dispatcher is
+flexible and it has low overhead, but for specific purposes, you may create
+a {\it custom\/} native function dispatcher.
+
+First, a little background. The abstract machine is much like a CPU
+implemented in software: it has an accumulator and a few other ``registers'',
+including an ``instruction pointer'' that points to the instruction that is
+executed next. When a function in a \Small\ program calls some other function,
+the abstract machine sees a ``\smallcaps{call}'' instruction, which adjust the
+instruction so that the next instruction to be executed is the first
+instruction of the called function. So far, all is well. However, a native
+function cannot be called using the same procedure, as the native function is
+compiled for a {\it real\/} CPU and the abstract machine can only handle its
+own instruction set. A native function is not invoked with a
+``\smallcaps{call}'' instruction, but with a ``\smallcaps{sysreq}''
+instruction. Instead of adjusting the abstract machine's instruction pointer,
+a ``\smallcaps{sysreq}'' fires the native function dispatcher. For real CPU's,
+the equivalent of a ``\smallcaps{sysreq}'' would be a software-invoked
+interupt.
+
+It is the task of the native function dispatcher to find the correct native
+function, to call the function, and to return the function result. The prototype
+for a native function dispatcher is:
+\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+    int amx_Callback(AMX *amx, cell index, cell *result, cell *params);
+|endverbatim
+where ``|index|'' is the unique identifier for the native function, ``|params|''
+points to an array with parameters that the dispatcher should pass to the
+native function, and ``|result|'' is where the dispatcher should store the
+return value of the native function. Assuming that the native function dispatcher
+has a way of finding the appropriate native function from the |index|, the
+dispatcher can call the native function with:
+\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+    *result = native_func(amx, params);
+|endverbatim
+
+The default native function dispatcher works in conjunction with |amx_Register|,
+which looks up a function from the ``native function table'' in the header of
+the compiled program file and stores the physycal function address directly
+in that table. With that done, the default dispatcher can simply use the |index|
+parameter as an index in the native function table and retrieve the physical
+address of the function. This is a flexible scheme, as it allows you to inspect
+the compiled program and load only those packages with native functions that the
+program actually uses.
+
+On the other hand, there are situations where the set of native functions
+that are available to a \Small\ program are fixed and known in advance ---for
+example, for abstract machines embedded in (small) hardware devices. For those
+situations, you have the option of hard-coding the mapping of ``\smallcaps{sysreq}''
+indices to native functions.
+
+The first step to make is to adjust the declarations of native functions in the
+header files. Taking the example of the ``power'' function module, the new
+declarations become:
+
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+native power(value, exponent) = -1;
+native sqroot(value)          = -2;
+|endverbatim\endlistingx
+
+The difference with the declarations on \xref{p.ex.power.natives} is that the
+|power| function is now specifically set at ``\smallcaps{sysreq}'' $-1$ and
+|sqroot| is at ``\smallcaps{sysreq}'' $-2$. The use of negative numbers is
+mandatory; the \Small\ compiler reserves positive numbers for its default
+auto-numbering scheme (both schemes can be mixed). When an explicit ``\smallcaps{sysreq}''
+index is given for a native function, the \Small\ compiler omits it from the
+native function table. That is, this scheme creates more compact binary files.
+
+The default native function dispatcher cannot handle native function indices, so
+you must replace it with a custom version. This consists of two steps: creating
+the new native function dispatcher, and setting it. The latter is simply a matter
+of calling:
+\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+    amx_SetCallback(&amx, my_callback);
+|endverbatim
+
+An example of a native function dispatcher follows below:
+
+\goodbreak
+\listingx\verbatim|parskip=0pt|smalltt|compactverbatim|Ccode
+int my_callback(AMX *amx, cell index, cell *result, cell *params)
+{
+  amx->error = AMX_ERR_NONE;
+
+  switch (index) {
+  case -1:
+    *result = n_power(amx, params);
+    break;
+  case -2:
+    *result = n_sqroot(amx, params);
+    break;
+  default:
+    assert(0);
+  } /* switch */
+
+  return amx->error;
+}
+|endverbatim\endlistingx
+
+
+\vfill\eject
+\footnotenumber=0%
+
+\section{Function reference}
+\noindent\marginbox0{See \xref{p.amx.errors} for the defined error codes.}%
+With one exception, all functions return an error code if the function fails
+(the exception is |amx_NativeInfo|). A return code of zero means ``no error''.
+
+%--------------------------------------------------------------------------
+\functitle{amx_Align16/32}{Conditionally swap bytes in a 16-bit or 32-bit word}
+\syntaxp uint16_t *amx_Align16(uint16_t *v)
+\nextitem
+\syntaxp uint32_t *amx_Align32(uint32_t *v)
+    \param{v}
+        A pointer to the 16-bit or 32-bit value whose bytes must be aligned.
+
+\notes
+    \sidx{Little Endian} \sidx{Big Endian} \sidx{Byte order}
+    Multi-byte fields in the header in the compiled file are in Little Endian format.
+    If run on a Big Endian architecture, these two functions function swap the bytes in a
+    16-bit or 32-bit Little Endian word. The value |v| remains unchanged if the code
+    runs on a Little Endian CPU, so there is no harm in always calling this
+    function.
+
+%--------------------------------------------------------------------------
+\functitle{amx_Allot}{Reserve heap space in the abstract machine}
+\syntaxp int amx_Allot(AMX *amx,int cells,cell *amx_addr, \lbreak
+                       cell **phys_addr)
+    \param{amx}
+        The abstract machine.
+    \param{cells}
+        The number of cells to reserve.
+    \param{amx_addr}
+        The address of the allocated cell as the \Small\ program (that runs in
+        the abstract machine) can access it.
+    \param{phys_addr}
+        The address of the cell for C programs to access.
+
+\notes
+    The intended purpose for |amx_Allot| and |amx_Release| is to pass arrays
+    and reference arguments to public functions as parameters. A \Small\ function
+    can only access memory inside its abstract machine. If a parameter is to
+    be passed ``by reference'' to a \Small\ function, one must pass the address
+    of that parameter to |amx_Exec|. In addition, that address {\it itself\/} must
+    be within the address range of the abstract machine too.
+    \sidx{Data section} \sidx{Sections}[data \midtilde]
+    An added complexity is that the abstract machine uses addresses that are
+    relative to the data section of the abstract machine, and the host program
+    uses address relative to the environment that the operating system gives it.
+
+    |amx_Allot| allocates memory cells inside the abstract machine and it
+    returns {\it two\/} addresses. The |amx_addr| parameter is the address of the variable
+    relative to the ``data section'' of the abstract machine; this is the value you should pass to
+    |amx_Exec|. Parameter |phys_addr| holds the address relative to the host
+    program's address space. So a C program can use this address and write into
+    the allocated memory.
+
+    After |amx_Exec| returns, you may inspect the memory block (the \Small\ function
+    called by |amx_Exec| may have written into it) and finally release it by
+    calling |amx_Release|.
+\seealso |amx_Exec|, |amx_Release|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Callback}{The default callback}
+\syntaxp int amx_Callback(AMX *amx, cell index, cell *result, cell *params)
+    \param{amx}
+        The abstract machine.
+    \param{index}
+        Index into the native function table; it points to the requested
+        native function.
+    \param{result}
+        The function result (of the native function) should be returned
+        through this parameter.
+    \param{params}
+        The parameters for the native function, passed as a list of long
+        integers. The first number of the list is the number of bytes passed
+        to the native functions (from which the number of arguments can be
+        computed).
+\returns
+    \marginbox0{See \xref{p.amx.errors} for the defined error codes.}%
+    The callback should return an error code, or zero for no error. When the
+    callback returns a non-zero code, |amx_Exec| aborts execution.
+\notes
+    The abstract machine has a default callback function, which works in
+    conjunction with |amx_Register|. You can override the default operation
+    by setting a different callback function using function |amx_SetCallback|.
+
+    If you override the default callback function, you may also need to
+    provide an alternative function for |amx_Registers|.
+\seealso |amx_Exec|, |amx_RaiseError|, |amx_SetCallback|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Clone}{Clone an abstract machine}
+\syntaxp int amx_Clone(AMX *amxClone, AMX *amxSource, void *data)
+    \param{amxClone}
+        The new abstract machine. This variable is initialized with the settings
+        of the |amxSource| abstract machine. Before calling this function, all
+        fields of the |amxClone| structure variable should be set to zero.
+    \param{amxSource}
+        The abstract machine whose code is to be shared with the cloned
+        abstract machine and whose data must be copied.
+    \param{data}
+        The memory block for the cloned abstract machine. This block must
+        hold the static (global) data, the stack and the heap.
+
+\notes
+    Use |amx_MemInfo| to query the size of the static data and the stack\slash heap
+    of the source abstract machine. The memory block to allocate for the |data|
+    parameter should have a size that is the sum of the global data and the
+    stack\slash heap size.
+
+    \sidx{Data section} \sidx{Sections}[data \midtilde]
+    The cloned abstract machine has a separate data section and a separate
+    stack, but it shares the executable code with the source abstract machine.
+    The source abstract machine should not be deleted while any cloned
+    abstract machines might still be active.
+
+    The state of the data section (the global and static variables) are copied
+    from the source abstract machine to the clone at the time that |amx_Clone|
+    is called. If the source abstract machine has modified any global\slash static
+    variables before it is cloned, the clone will have these values as its
+    initial state. In practice, it may be advisable {\it not\/} to ``run'' the
+    source abstract machine at all, but to use it only for cloning and run the
+    clones.
+\seealso
+    |amx_Init|, |amx_MemInfo|
+
+%--------------------------------------------------------------------------
+\functitle{amx_ctof}{Cast ``cell'' to ``float''}
+\syntaxp float amx_ctof(cell c)
+    \param{c}
+        The value to cast from ``cell'' type to ``float''.
+\returns
+    The same bit pattern, but now as a floating point type.
+\notes
+    \sidx{Type cast}
+    This {\bf macro} casts a ``cell'' type into a ``float'' type {\it without\/}
+    changing the bit pattern. A normal type cast in C/\Cpp\ changes the memory
+    representation of the expression so that its numeric value in IEEE 754
+    format comes closest to the original integer value. The \Small\ parser and
+    abstract machine store floating point values in a cell ---when retrieving a
+    floating point value from a cell, the bit pattern must {\it not\/} be
+    changed.
+\seealso |amx_ftoc|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Debug}{The default debug hook}
+\syntaxp int amx_Debug(AMX *amx)
+    \param{amx}
+        The abstract machine.
+\returns
+    The debug hook should return an error code, or |AMX_NO_ERROR| for no error.
+\notes
+    The default debug function is a stub that immediately returns. Programs can
+    replace the default debug hook function to monitor symbols and to trace
+    through code step by step. The debugger interface is described in a
+    separate document and through an example program in the distribution:
+    |SDBG.C|.
+\seealso |amx_SetDebugHook|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Exec}{Run code}
+\xrdef{p.amx.Exec}
+\syntaxp int amx_Exec(AMX *amx, long *retval, int index, int numparams, ...)
+    \param{amx}
+        The abstract machine from which to call a function.
+    \param{retval}
+        Will hold the return value of the called function upon return.
+    \param{index}
+        An index into the ``public function table''; it indicates the
+        function to execute. See |amx_FindPublic| for more information.
+        Use |AMX_EXEC_MAIN| to start executing at the |main| function.
+    \param{numparams}
+        The number of function parameters that follow.
+    \param{...}
+        Optional parameters for the function. All these parameters must
+        be cast to the type |cell|, which is usually a 32-bit integer.
+\notes
+    This function calls the callback function for any native function call
+    that the code in the AMX makes. |amx_Exec| assumes that all native
+    functions are correctly initialized with |amx_Register|.
+
+    In situations where dealing with variable arguments is inconvenient, use
+    |amx_Execv|.
+\seealso |amx_Execv|, |amx_FindPublic|, |amx_Register|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Execv}{Run code}
+\xrdef{p.amx.Exec}
+\syntaxp int amx_Exec(AMX *amx, cell *retval, int index, int numparams, cell params[])
+    \param{amx}
+        The abstract machine from which to call a function.
+    \param{retval}
+        Will hold the return value of the called function upon return.
+    \param{index}
+        An index into the ``public function table''; it indicates the
+        function to execute. See |amx_FindPublic| for more information.
+        Use |AMX_EXEC_MAIN| to start executing at the |main| function.
+    \param{numparams}
+        The number of function parameters that follow.
+    \param{params}
+        An array with the parameters for the function.
+\notes
+    This function calls the callback function for any native function call
+    that the code in the AMX makes. |amx_Execv| assumes that all native
+    functions are correctly initialized with |amx_Register|.
+\seealso |amx_Exec|, |amx_FindPublic|, |amx_Register|
+
+%--------------------------------------------------------------------------
+\functitle{amx_FindNative}{Return the index of a native function}
+\syntaxp int amx_FindNative(AMX *amx, char *funcname, int *index)
+    \param{amx}
+        The abstract machine.
+    \param{funcname}
+        The name of the native function to find.
+    \param{index}
+        Upon return, this parameter holds the index of the requested native
+        function.
+\notes
+    The returned index is the same as what the abstract machine would pass to
+    |amx_Callback|.
+\seealso
+    |amx_Callback|, |amx_FindPublic|, |amx_GetNative|, \lbreak
+    |amx_NumNatives|
+
+%--------------------------------------------------------------------------
+\functitle{amx_FindPublic}{Return the index of a public function}
+\syntaxp int amx_FindPublic(AMX *amx, char *funcname, int *index)
+    \param{amx}
+        The abstract machine.
+    \param{funcname}
+        The name of the public function to find.
+    \param{index}
+        Upon return, this parameter holds the index of the requested public
+        function.
+\seealso
+    |amx_Exec|, |amx_FindNative|, |amx_FindPubVar|, |amx_GetPublic|, |amx_NumPublics|
+
+\goodbreak
+%--------------------------------------------------------------------------
+\functitle{amx_FindPubVar}{Return the address of a public variable}
+\syntaxp int amx_FindPubVar(AMX *amx, char *varname, \lbreak
+                            cell *amx_addr)
+    \param{amx}
+        The abstract machine.
+    \param{varname}
+        The name of the public variable to find.
+    \param{amx_addr}
+        Upon return, this parameter holds the variable address relative to
+        the abstract machine.
+\notes
+    \sidx{Data section} \sidx{Sections}[data \midtilde]
+    The returned address is the address relative to the ``data section''
+    in the abstract machine. Use |amx_GetAddr| to acquire a pointer to its
+    ``physical'' address.
+\seealso
+    |amx_FindPublic|, |amx_GetAddr|, |amx_GetPubVar|, |amx_NumPubVars|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Flags}{Return various flags}
+\syntaxp int amx_Flags(AMX *amx,unsigned short *flags)
+    \param{amx}
+        The abstract machine.
+    \param{flags}
+        A set of bit flags is stored in this parameter. It is a set of the
+        following flags:
+        \beginlist{80pt}\compactlist
+        \list{\tt AMX_FLAG_CHAR16}
+            if a character is 16-bits rather than the default of 8 bits
+        \list{\tt AMX_FLAG_DEBUG}
+            if the program carries symbolic information
+        \list{\tt AMX_FLAG_COMPACT}
+            if the program is stored in ``compact encoding''
+        \list{\tt AMX_FLAG_BIGENDIAN}
+            if multi-byte values are stored in ``Big Endian'' order
+        \list{\tt AMX_FLAG_NOCHECKS}
+            if the compiled P-code does {\it\/} not include
+            line number information and run-time (bounds) checks
+        \endlist
+\notes
+    A typical use for this function is to check whether the compiled program
+    contains symbolic (debug) information. There is may not be much use in
+    running a debugger without having symbolic information for the program to
+    debug; if the program does not even have line number information, installing
+    a debugger callback may be skipped altogether.
+
+\goodbreak
+%--------------------------------------------------------------------------
+\functitle{amx_ftoc}{Cast ``float'' to ``cell''}
+\syntaxp cell amx_ftoc(float f)
+    \param{f}
+        The value to cast from ``float'' type to ``cell''.
+\returns
+    The same bit pattern, but now as a ``cell'' type.
+\notes
+    \sidx{Type cast}
+    This {\bf macro} casts a ``float'' type into a ``cell'' type {\it without\/}
+    changing the bit pattern. A normal type cast in C/\Cpp\ changes the memory
+    representation of the expression so that its numeric value in integer
+    format is the integral (truncated) value of the original rational value.
+    The \Small\ parser and abstract machine store floating point values in a
+    cell ---when storing a floating point value in a cell, the bit pattern must
+    {\it not\/} be changed.
+\seealso |amx_ctof|
+
+\goodbreak
+%--------------------------------------------------------------------------
+\functitle{amx_GetAddr}{Resolve an AMX address}
+\syntaxp int amx_GetAddr(AMX *amx,cell amx_addr,cell **phys_addr)
+    \param{amx}
+        The abstract machine.
+    \param{amx_addr}
+        The address relative to the abstract machine.
+    \param{phys_addr}
+        A pointer to the variable that will hold the memory address
+        of the indicated cell.
+\notes
+    This function returns the memory address of an address in the abstract
+    machine. One typically uses this function in an extension module, because
+    it allows you to access variables inside the abstract machine.
+
+\goodbreak
+%--------------------------------------------------------------------------
+\functitle{amx_GetNative}{Return a native function name}
+\syntaxp int amx_GetNative(AMX *amx, int index, char *funcname)
+    \param{amx}
+        The abstract machine.
+    \param{index}
+        The index of the requested function. Use zero to retrieve the name of
+        the first native function.
+    \param{funcname}
+        The string that will hold the name of the native function.
+\notes
+    The string should be large enough to hold longest function name plus the
+    terminating zero byte. Use |amx_NameLength| to inquire this length.
+\seealso
+    |amx_FindNative|, |amx_GetPublic|, |amx_NameLength|, \lbreak
+    |amx_NumNatives|
+
+\goodbreak
+%--------------------------------------------------------------------------
+\functitle{amx_GetPublic}{Return a public function name}
+\syntaxp int amx_GetPublic(AMX *amx, int index, char *funcname)
+    \param{amx}
+        The abstract machine.
+    \param{index}
+        The index of the requested function. Use zero to retrieve the name of
+        the first public function.
+    \param{funcname}
+        The string that will hold the name of the public function.
+\notes
+    The string should be large enough to hold longest function name plus the
+    terminating zero byte. Use |amx_NameLength| to inquire this length.
+\seealso
+    |amx_FindPublic|, |amx_GetPubVar|, |amx_NameLength|, \lbreak
+    |amx_NumPublics|
+
+%--------------------------------------------------------------------------
+\functitle{amx_GetPubVar}{Return a public variable name and address}
+\syntaxp int amx_GetPubVar(AMX *amx, int index, char *varname, cell *amx_addr)
+    \param{amx}
+        The abstract machine.
+    \param{index}
+        The index of the requested variable. Use zero to retrieve the name and
+        address of the first public variable.
+    \param{varname}
+        The string that will hold the name of the public variable.
+    \param{amx_addr}
+        Upon return, this parameter holds the variable address relative to
+        the abstract machine.
+\notes
+    The string should be large enough to hold longest variable name plus the
+    terminating zero byte. Use |amx_NameLength| to inquire this length.
+
+    \sidx{Data section} \sidx{Sections}[data \midtilde]
+    The returned address is the address relative to the ``data section''
+    in the abstract machine. Use |amx_GetAddr| to acquire a pointer to its
+    ``physical'' address.
+\seealso
+    |amx_FindPubVar|, |amx_GetAddr|, |amx_GetPublic|, \lbreak
+    |amx_NameLength|, |amx_NumPubVars|
+
+%--------------------------------------------------------------------------
+\functitle{amx_GetString}{Retrieve a string from the abstract machine}
+\syntaxp int amx_GetString(char *dest, cell *source)
+    \param{dest}
+        A pointer to a character array of sufficient size to hold the
+        converted source string.
+    \param{source}
+        A pointer to the source string. Use |amx_GetAddr| to convert a
+        string address in the AMX to the physical address.
+\notes
+    This function converts both packed strings and unpacked strings from
+    the ``\Small'' format to the ``C'' format.
+\seealso |amx_SetString|
+
+%--------------------------------------------------------------------------
+\functitle{amx_GetUserData}{Return general purpose user data}
+\syntaxp int amx_GetUserData(AMX *amx, long tag, void **ptr)
+    \param{amx}
+        The abstract machine.
+    \param{tag}
+        The ``tag'' of the user data.
+    \param{ptr}
+        Will hold a pointer to the requested user data upon return.
+\notes
+    The AMX stores multiple ``user data'' fields. Each field must have a unique
+    tag. The tag may be any value (as long as it is unique), but it is usually
+    formed by a four-letter mnemonic through the macro |AMX_USERTAG|.
+
+    The AMX does not use ``user data'' in any way. The storage can be used for
+    any purpose.
+\seealso
+    |amx_SetUserData|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Init}{Create an abstract machine, load the binary file}
+\syntaxp int amx_Init(AMX *amx, void *program)
+    \param{amx}
+        This variable is initialized with the specific settings of the abstract
+        machine. Before calling this function, all fields of the |amx|
+        structure variable should be set to zero.
+    \param{program}
+        A pointer to the bytecode stream of the program.
+\notes
+        |amx_Init| initializes the abstract machine with the settings from the
+        binary file. Before calling this function, you should set the |amx|
+        structure variable to all zeros.
+%\seealso |amx_Release|
+
+%--------------------------------------------------------------------------
+% ???
+% int amx_InitJIT(AMX *amx, void *reloc_table, void *native_code);
+
+%--------------------------------------------------------------------------
+\functitle{amx_MemInfo}{Return memory size information}
+\syntaxp int AMXAPI amx_MemInfo(AMX *amx, long *codesize, long *datasize, long *stackheap)
+    \param{amx}
+        The abstract machine.
+    \param{codesize}
+        Will hold the size of the executable code upon return.
+    \param{datasize}
+        Will hold the size of the global\slash static data upon return.
+    \param{stackheap}
+        Will hold the combined (maximum) size of the of the stack and the heap
+        upon return.
+\notes
+    All sizes are in bytes.
+
+    The stack and the heap share a memory region; the stack grows towards the
+    heap and the heap grows towards the stack.
+\seealso
+    |amx_Clone|
+
+%--------------------------------------------------------------------------
+\functitle{amx_NameLength}{Return the maximum name length}
+\syntaxp int amx_NameLength(AMX *amx, int *length)
+    \param{amx}
+        The abstract machine.
+    \param{length}
+        Will hold the maximum name length upon return. The returned value
+        includes the space needed for the terminating zero byte.
+\seealso
+    |amx_GetPublic|, |amx_GetPubVar|
+
+%--------------------------------------------------------------------------
+\functitle{amx_NativeInfo}{Return a structure for amx_Register}
+\syntaxp AMX_NATIVE_INFO *amx_NativeInfo(char *name, AMX_NATIVE func)
+    \param{name}
+        The name of the function (as known to the \Small\ program)
+    \param{func}
+        A pointer to the native function.
+\notes
+    This function creates a list with a single record for |amx_Register|. To
+    register a single function, use the code snippet (where |my_solve| is a
+    native function):
+    \lbreak\hbox{\vbox{\advance \hsize by -\funrefindent \noindent
+\listingx\verbatim|parskip=0pt|undoskip|smalltt|compactverbatim|Ccode
+err = amx_Register(amx, amx_NativeInfo("solve", my_solve), 1);
+|endverbatim\endlistingx
+    }}%
+
+    This function returns a pointer to a static record.
+\seealso |amx_Register|
+
+%--------------------------------------------------------------------------
+\functitle{amx_NumNatives}{Return the number of native functions}
+\syntaxp int amx_NumNatives(AMX *amx, int *number)
+    \param{amx}
+        The abstract machine.
+    \param{number}
+        Will hold the number of native functions upon return.
+\notes
+    The function returns number of entries in the file's ``native functions''
+    table. This table holds only the native functions that the script refers
+    to (i.e.\ the function that it calls). To retrieve the function names, use
+    |amx_GetNative|.
+\seealso
+    |amx_GetNative|, |amx_NumPublics|
+
+%--------------------------------------------------------------------------
+\functitle{amx_NumPublics}{Return the number of public functions}
+\syntaxp int amx_NumPublics(AMX *amx, int *number)
+    \param{amx}
+        The abstract machine.
+    \param{number}
+        Will hold the number of public functions upon return.
+\notes
+    The function returns number of entries in the file's ``public functions''
+    table. To retrieve the function names, use |amx_GetPublic|.
+\seealso
+    |amx_GetPublic|, |amx_NumPubVars|
+
+%--------------------------------------------------------------------------
+\functitle{amx_NumPubVars}{Return the number of public variables}
+\syntaxp int amx_NumPubVars(AMX *amx, int *number)
+    \param{amx}
+        The abstract machine.
+    \param{number}
+        Will hold the number of public variables upon return.
+\notes
+    The function returns number of entries in the file's ``public variables''
+    table. To retrieve the variable names, use |amx_GetPubVar|.
+\seealso
+    |amx_GetPubVar|, |amx_NumPublics|
+
+%--------------------------------------------------------------------------
+\functitle{amx_RaiseError}{Flag an error}
+\syntaxp int amx_RaiseError(AMX *amx, int error)
+    \param{amx}
+        The abstract machine.
+    \param{error}
+        The error code. This is the code that |amx_Exec()| returns.
+\notes
+    This function should be called from a native function. It lets the
+    default callback routine return an error code.
+
+%--------------------------------------------------------------------------
+\functitle{amx_Register}{Make native functions known}
+\syntaxp int amx_Register(AMX *amx, AMX_NATIVE_INFO *list, int number)
+    \param{amx}
+        The abstract machine.
+    \param{list}
+        An array with structures where each structure holds a pointer to the
+        name of a native function and a function pointer. The list is
+        optionally terminated with a structure holding two |NULL| pointers.
+    \param{number}
+        The number of structures in the |list| array, or -1 if the list ends
+        with a structure holding two |NULL| pointers.
+\notes
+    On success, this function returns 0 (|AMX_ERR_NONE|).
+    If this function returns the error code |AMX_ERR_NOTFOUND|, one or more
+    native functions that are used by the \Small\ program are not found in the
+    provided list. You can call |amx_Register| again to register additional
+    function lists.
+
+    To check whether all native functions used in the compiled script have been
+    registered, call |amx_Register| with the parameter |list| set to |NULL|.
+    This call will not register any new native functions, but still return
+    |AMX_ERR_NOTFOUND| if any native function is unregistered.
+\seealso |amx_NativeInfo|
+
+%--------------------------------------------------------------------------
+\functitle{amx_Release}{Free heap space in the abstract machine}
+\xrdef{p.amx.Release}
+\syntaxp int amx_Release(AMX *amx,cell amx_addr)
+    \param{amx}
+        The abstract machine.
+    \param{amx_addr}
+        The address of the allocated cell as the \Small\ program (that runs in
+        the abstract machine) sees it. This value is returned by |amx_Allot|.
+\notes
+    |amx_Allot| allocates memory on the heap in ascending order (the heap grows
+    upwards). |amx_Release| frees all memory {\it above\/} the value of the
+    input parameter |amx_addr|. That is, a single call to
+    |amx_Release| can free multiple calls to |amx_Allot| if you pass the
+    |amx_addr| value of the first allocation.
+\seealso |amx_Exec|, |amx_Release|
+
+%--------------------------------------------------------------------------
+\functitle{amx_SetCallback}{Install a callback routine}
+\syntaxp int amx_SetCallback(AMX *amx, AMX_CALLBACK callback)
+    \param{amx}
+        The abstract machine.
+    \param{callback}
+        The address for a callback function. See function |amx_Callback| for
+        the prototype and calling convention of a callback routine.
+\notes
+    If you change the callback function, you should not use functions
+    |amx_Register| or |amx_RaiseError|. These functions work in conjunction
+    with the default callback function. To set the default callback, set
+    parameter |callback| to the function |amx_Callback|.
+
+    You may set the callback before or after calling |amx_Init|.
+
+%--------------------------------------------------------------------------
+\functitle{amx_SetDebugHook}{Install a debug routine}
+\syntaxp int amx_SetDebugHook(AMX *amx, AMX_DEBUG debug)
+    \param{amx}
+        The abstract machine.
+    \param{debug}
+        The address for a callback function for the debugger. See |amx_Debug|
+        for the prototype and calling convention of a debug hook routine.
+\notes
+    If you use a non-default debug hook routine, you should set it before
+    calling |amx_Init|.
+
+    To set the default debug routine, set parameter |debug| to the function
+    |amx_Debug|.
+
+%--------------------------------------------------------------------------
+\functitle{amx_SetString}{Store a string in the abstract machine}
+\syntaxp int amx_SetString(cell *dest, char *source, int pack)
+    \param{dest}
+        A pointer to a character array in the AMX where the converted string
+        is stored. Use |amx_GetAddr| to convert a
+        string address in the AMX to the physical address.
+    \param{source}
+        A pointer to the source string.
+    \param{pack}
+        Non-zero to convert the source string to a packed string in the
+        abstract machine, zero to convert the source string to a cell string.
+\seealso |amx_GetString|
+
+%--------------------------------------------------------------------------
+\functitle{amx_SetUserData}{Set general purpose user data}
+\syntaxp int amx_SetUserData(AMX *amx, long tag, void *ptr)
+    \param{amx}
+        The abstract machine.
+    \param{tag}
+        The ``tag'' of the user data, which uniquely identifies the user data.
+        This value should not be zero.
+    \param{ptr}
+        A pointer to the user data.
+\notes
+    The AMX stores multiple ``user data'' fields. Each field must have a unique
+    tag. The tag may be any value (as long as it is unique) except zero, but it
+    is usually formed by four characters through the macro |AMX_USERTAG|.
+    \lbreak\hbox{\vbox{\advance \hsize by -\funrefindent \noindent
+\listingx\verbatim|parskip=0pt|undoskip|smalltt|compactverbatim|Ccode
+r = amx_SetUserData(amx, AMX_USERTAG('U','S','E','R'), "Fire");
+|endverbatim\endlistingx
+    }}%
+
+    The AMX does not use ``user data'' in any way. The storage can be used for
+    any purpose.
+\seealso
+    |amx_GetUserData|
+
+%--------------------------------------------------------------------------
+\functitle{amx_StrLen}{Get the string length in characters}
+\syntaxp int amx_StrLen(cell *cstring, int *length)
+    \param{cstring}
+        The string in the abstract machine.
+    \param{length}
+        This parameter will hold the string length upon return.
+\notes
+    This function determines the length in {\it characters\/} of the string,
+    not including the zero-terminating character (or cell). A packed string
+    occupies less cells than its number if characters.
+
+%--------------------------------------------------------------------------
+% \functitle{amx_Version}{Get various version numbers}
+% \syntaxp int amx_Version(AMX *amx, int *fileversion, int *requiredversion,
+%                         int *curversion)
+%     \param{fileversion}
+%         The file-format version of the AMX file.
+%     \param{requiredversion} \lbreak
+%         The minimal required version of the AMX to execute this file.
+%     \param{curversion}
+%         The version of the current AMX.
+% \notes
+%     All versions are integers that start at zero. There are no ``minor'' and
+%     ``major'' version numbers.
+%
+%     To see whether the AMX can run the file, compare |curversion| with
+%     |requiredversion|. When a compiler adds features to the file format that
+%     are {\it fully compatible\/} with the previous file format, it increments
+%     the |fileversion| field, but {\it not\/} the |requiredversion| field.
+%     This way, a newer AMX can use\slash access the new features added to the
+%     file format, while older AMX'es can still run the file. An older AMX
+%     only ignores part of the file.
+\resetlists
+\sidx[end]{Abstract Machine eXecutive}
+
+\vfill\eject % ???
+
+\section{Error codes}
+\bigskip
+\xrdef{p.amx.errors} \sidx{Errors}[run-time \midtilde]
+\beginlist{35pt} \compactlist
+\list{\tt AMX_ERR_NONE} \hfil (0) \break
+  No error.
+\list{\tt AMX_ERR_EXIT} \hfil (1) \break
+  Program aborted execution. This is usually not an error.
+\list{\tt AMX_ERR_ASSERT} \hfil (2) \break
+  A run-time assertion failed.
+\list{\tt AMX_ERR_STACKERR} \hfil (3) \break
+  Stack or heap overflow; the stack collides with the heap.
+\list{\tt AMX_ERR_BOUNDS} \hfil (4) \break
+  Array index is out of bounds.
+\list{\tt AMX_ERR_MEMACCESS} \hfil (5) \break
+  Accessing memory that is not allocated for the program.
+\list{\tt AMX_ERR_INVINSTR} \hfil (6) \break
+  Invalid instruction.
+\list{\tt AMX_ERR_STACKLOW} \hfil (7) \break
+  Stack underflow; more items are popped off the stack than were pushed onto it.
+\list{\tt AMX_ERR_HEAPLOW} \hfil (8) \break
+  Heap underflow; more items are removed from the heap than were inserted into
+  it.
+\list{\tt AMX_ERR_CALLBACK} \hfil (9) \break
+  There is no callback function, and the program called a native function.
+\list{\tt AMX_ERR_NATIVE} \hfil (10) \break
+  Native function requested the abortion of the abstract machine.
+\list{\tt AMX_ERR_DIVIDE} \hfil (11) \break
+  Division by zero.
+\list{\tt AMX_ERR_SLEEP} \hfil (12) \break
+  The script, or a native function, forced a ``sleep''. A host application may
+  implement a simple kind of co-operative multitasking scheme with the ``sleep''
+  instruction.
+\list{\tt AMX_ERR_MEMORY} \hfil (16) \break
+  General purpose out-of-memory error.
+\list{\tt AMX_ERR_FORMAT} \hfil (17) \break
+  Invalid format of the memory image for the abstract machine.
+\list{\tt AMX_ERR_VERSION} \hfil (18) \break
+  This program requires a newer version of the abstract machine.
+\list{\tt AMX_ERR_NOTFOUND} \hfil (19) \break
+  The requested native functions are not found.
+\list{\tt AMX_ERR_INDEX} \hfil (20) \break
+  Invalid index (invalid parameter to a function).
+\list{\tt AMX_ERR_DEBUG} \hfil (21) \break
+  The debugger cannot run (this is an error code that the debug hook may return).
+\list{\tt AMX_ERR_INIT} \hfil (22) \break
+  The abstract machine was not initialized, or it was attempted to
+  double-initialize it.
+\list{\tt AMX_ERR_USERDATA} \hfil (23) \break
+  Unable to set user data field (table full), or unable to retrieve the user data
+  (not found).
+\list{\tt AMX_ERR_INIT_JIT} \hfil (24) \break
+  \sidx{Just-In-Time compiler}
+  The Just-In-Time compiler failed to initialize.
+\list{\tt AMX_ERR_PARAMS} \hfil (25) \break
+  General purpose parameter error: one of the parameters to a function of the
+  abstract machine was incorrect (e.g.\ out of range).
+\endlist
+
+% long callback(AMX *amx,int modindex,int funcindex,void *params);
+%         /* modindex = index in module table
+%          * funcindex = index in native function table
+%          * params = pointer into AMX stack
+%          */
+%
+% \subsection{AMX structure}
+%         pointer to the prefix
+%         pointer to the callback
+%         user data
+%

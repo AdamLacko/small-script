@@ -1,0 +1,940 @@
+\appendix{Error and warning messages}
+%------------------------------------
+\sidx[begin]{Errors}
+When the compiler finds an error in a file, it outputs a message giving, in
+this order:
+\beginlist{1em} \compactlist
+\list{\lbullet} the name of the file
+\list{\lbullet} the line number were the compiler detected the error between
+  parentheses, directly behind the filename
+\list{\lbullet} the error class (``error'', ``fatal error'' or ``warning'')
+\list{\lbullet} an error number
+\list{\lbullet} a descriptive error message
+\endlist
+
+For example: \lbreak
+\tabto 35pt  |demo.c(3) : error 001: expected token: ";", but found "{"|
+
+Note: the line number given by the compiler may specify a position behind the
+actual error, since the compiler cannot always establish an error before
+having analyzed the complete expression.
+
+After termination, the return code of the compiler is:
+\beginlist{20pt}\compactlist
+\list{0} no errors
+\list{1} errors found
+\list{2} warnings found
+\list{3} aborted by user
+\endlist
+
+These return codes may be checked within batch processors (such as the ``|make|''
+utility).
+
+\subsection{Error categories}
+Errors are separated into three classes:
+
+\beginlist{70pt}
+\list{Errors} Describe situations where the compiler is unable to generate
+  appropriate code. Errors messages are numbered from 1 to 99.
+
+\list{Fatal errors} Fatal errors describe errors from which the compiler
+  cannot recover. Parsing is aborted. Fatal error messages are numbered from
+  100 to 199.
+
+\list{Warnings} Warnings are displayed for unintended compiler assumptions and
+  common mistakes. Warning messages are numbered from 200 to 299.
+\endlist
+
+
+\subsection{Errors}
+
+\def\boldline#1{{\bf #1}\lbreak}
+
+\beginlist{40pt}
+\list{001} \boldline{expected token: {\it token\/}, but found {\it token}}
+        A required token is omitted.
+
+\list{002} \marginbox0{Pitfalls: \xrefn{p.pitfalls}\lbreak Compound statement: \xrefn{p.stmt.compound}}%
+        \boldline{only a single statement (or expression) can follow each ``case''}
+        Every case in a switch statement can hold exactly one statement. To
+        put multiple statements in a case, enclose these statements between
+        braces (which creates a combound statement).
+
+\list{003} \boldline{declaration of a local variable must appear in a compound block}
+        The declaration of a local variable must appear between braces (``|{|\dots|}|'')
+        at the active scope level.
+
+        When the parser flags this error, a variable declaration appears as
+        {\it the only statement\/} of a function or {\it the only statement\/}
+        below an |if|, |else|, |for|, |while| or |do| statement. Note that, since
+        local variables are accessible only from (or below) the scope that their
+        declaration appears in, having a variable declaration {\it as the only statement\/}
+        at any scope is useless.
+
+\list{004} \marginbox0{Forward declaration: \xrefn{p.function.forward}}%
+        \boldline{function {\it name\/} is not implemented}
+        There is no implementation for the designated
+        function. The function may have been ``forwardly'' declared ---or
+        prototyped--- but the full function definition including a statement,
+        or statement block, is missing.
+
+\list{005} \boldline{function may not have arguments}
+        The function |main()| is the program entry point. It may not have
+        arguments.
+
+\list{006} \boldline{must be assigned to an array}
+        String literals or arrays must be assigned to an array. This error
+        message may also indicate a missing index (or indices) at the array
+        on the right side of the ``='' sign.
+
+\list{007} \marginbox0{\#assert directive: \xrefn{p.assert.p}}%
+        \boldline{assertion failed}
+        Compile-time assertion failed.
+
+\list{008} \boldline{must be a constant expression; assumed zero}
+        The size of arrays and the parameters of most directives must be
+        constant values.
+
+\list{009} \boldline{invalid array size (negative or zero)}
+        The number of elements of an array must always be 1 or more.
+
+\list{010} \boldline{illegal function or declaration}
+        The compiler expects a declaration of a global variable or of a
+        function at the current location, but it cannot interpret it as such.
+
+\list{011} \boldline{invalid outside functions}
+        The instruction or statement is invalid at a global level. Local
+        labels and (compound) statements are only valid if used within
+        functions.
+
+\list{012} \boldline{invalid function call, not a valid address}
+        The symbol is not a function.
+
+\list{013} \boldline{no entry point (no public functions)}
+        The file does not contain a |main| function or any public function.
+        The compiled file thereby does not have a starting point for the
+        execution.
+
+\list{014} \boldline{invalid statement; not in switch}
+        The statements |case| and |default| are only valid inside a
+        |switch| statement.
+
+\list{015} \boldline{``default'' must be the last clause in switch statement}
+        \Small\ requires the |default| clause to be the last clause in a
+        |switch| statement.
+
+\list{016} \boldline{multiple defaults in ``switch''}
+        Each |switch| statement may only have one |default| clause.
+
+\list{017} \boldline{undefined symbol {\it symbol}}
+        The symbol (variable, constant or function) is not declared.
+
+\list{018} \marginbox0{Initialization: \xrefn{p.data.initiallers}}%
+        \boldline{initialization data exceeds declared size}
+        An array with a specified size is initialized, but the number of
+        initiallers exceeds the number of elements specified (e.g.
+        ``|arr[3]={1,2,3,4};|'' the array is specified to have three
+        elements, but there are four initiallers).
+
+\list{019} \boldline{not a label: {\it name}}
+        A |goto| statement branches to a symbol that is not a label.
+
+\list{020} \marginbox0{Symbol name syntax: \xrefn{p.syntax.identifiers}}%
+        \boldline{invalid symbol name}
+        A symbol may start with a letter, an underscore or an ``at'' sign (``@'')
+        and may be followed by a series of letters, digits, underscore
+        characters and ``@'' characters.
+
+\list{021} \boldline{symbol already defined: {\it identifier}}
+        The symbol was already defined at the current level.
+
+\list{022} \boldline{must be lvalue (non-constant)}
+        The symbol that is altered (incremented, decremented, assigned a
+        value, etc.) must be a variable that can be modified (this kind of
+        variable is called an lvalue). Functions, string literals, arrays and
+        constants are no lvalues. Variables declared with the ``|const|''
+        attribute are no lvalues either.
+
+\list{023} \boldline{array assignment must be simple assignment}
+        When assigning one array to another, you cannot combine an arithmetic
+        operation with the assignment (e.g., you cannot use the ``+=''
+        operator).
+
+\list{024} \boldline{``break'' or ``continue'' is out of context}
+        The statements |break| and |continue| are only valid inside the context
+        of a loop (a |do|, |for| or |while| statement). Unlike the languages
+        C/\Cpp\ and Java, |break| does not jump out of a |switch| statement.
+
+\list{025} \boldline{function heading differs from prototype}
+        The number of arguments given at a previous declaration of the
+        function does not match the number of arguments given at the current
+        declaration.
+
+\list{026} \boldline{no matching ``\#if...''}
+        The directive |#else| or |#endif| was encountered, but no matching
+        |#if| directive was found.
+
+\list{027} \marginbox0{Escape sequence: \xrefn{p.character.constants}}%
+        \boldline{invalid character constant}
+        One likely cause for this error is the occurrence of an unknown escape
+        sequence, like ``|\x|''. Putting multiple characters between single
+        quotes, as in |'abc'| also issues this error message. A third cause
+        for this error is a situation where a character constant was expected,
+        but none (or a non-character expression) were provided.
+
+\list{028} \boldline{cannot subscript, not an array}
+        The subscript operators ``['' and ``]'' are only valid with arrays.
+
+\list{029} \boldline{invalid expression, assumed zero}
+        The compiler could not interpret the expression.
+
+\list{030} \boldline{compound statement not closed at the end of file}
+        An unexpected end of file occurred. One or more compound statements are
+        still unfinished (i.e. the closing brace ``$\}$'' has not been found).
+
+\list{031} \boldline{unknown directive}
+        The character ``\#'' appears first at a line, but no valid directive
+        was specified.
+
+\list{032} \boldline{array index out of bounds}
+        The array index is larger than the highest valid entry of the array.
+
+\list{033} \boldline{array must be indexed (variable {\it name\/})}
+        An array as a whole cannot be used in a expression; you must indicate
+        an element of the array between square brackets.
+
+\list{034} \boldline{argument does not have a default value (argument {\it index\/})}
+        You can only use the argument placeholder when the function definition
+        specifies a default value for the argument.
+
+\list{035} \boldline{argument type mismatch (argument {\it index\/})}
+        The argument that you pass is different from the argument that the
+        function expects, and the compiler cannot convert the passed-in
+        argument to the required type. For example, you cannot pass the literal
+        value ``1'' as an argument when the function expects an array or a
+        reference.
+
+\list{036} \marginbox0{Empty compound block: \xrefn{p.stmt.empty}}%
+        \boldline{empty statement}
+        The line contains a semicolon that is not preceded by an expression.
+        \Small\ does not support a semicolon as an empty statement, use an
+        empty compound block instead.
+
+\list{037} \boldline{invalid string (possibly non-terminated string)}
+        A string was not well-formed; for example, the final quote that ends
+        a string is missing, or the filename for the |#include| directive was
+        not enclosed in double quotes or angle brackets.
+
+\list{038} \boldline{extra characters on line}
+        There were trailing characters on a line that contained a directive
+        (a directive starts with a |#| symbol, see \xref{p.directives}).
+
+\list{039} \boldline{constant symbol has no size}
+        A variable has a size (measured in a number of cells), a constant
+        has no size. That is, you cannot use a (symbolic) constant with the
+        |sizeof| operator, for example.
+
+\list{040} \boldline{duplicate ``case'' label (value {\it value})}
+        A preceding ``case label'' in the list of the |switch| statement
+        evaluates to the same value.
+
+\list{041} \boldline{invalid ellipsis, array size is not known}
+        You used a syntax like ``|arr[] = { 1, ... };|'', which is
+        invalid, because the compiler cannot deduce the size of the array
+        from the declaration.
+
+\list{042} \boldline{invalid combination of class specifiers}
+        A function is denoted as both ``public'' and ``native'', which is
+        unsupported.
+
+\list{043} \boldline{character constant exceeds range for packed string}
+        Usually an attempt to store a Unicode character in a packed string
+        where a packed character is 8-bits.
+
+\list{044} \boldline{mixing named and positional parameters}
+        You must either use named parameters or positional parameters for
+        all parameters of the function.
+
+\list{045} \boldline{too many function arguments}
+        The maximum number of function arguments is currently limited to 64.
+
+\list{046} \boldline{unknown array size (variable {\it name\/})}
+        For array assignment, the size of both arrays must be explicitly
+        defined, also if they are passed as function arguments.
+
+\list{047} \boldline{array sizes must match}
+        For array assignment, the arrays on the left and the right size of
+        the assignment operator must have the same size.
+
+\list{048} \boldline{array dimensions must match}
+        For an array assignment, the dimensions of the arrays on both sides of
+        the ``='' sign must match; when passing arrays to a function argument,
+        the arrays passed to the function (in the function call) must match
+        with the definition of the function arguments.
+
+\list{049} \marginbox0{Single line comment: \xrefn{p.comment}}%
+        \boldline{invalid line continuation}
+        A line continuation character (a backslash at the end of a line)
+        is at an invalid position, for example at the end of a file or in
+        a single line comment.
+
+\list{050} \boldline{invalid range}
+        A numeric range with the syntax ``{\it n1} |..| {\it n2}'', where
+        {\it n1\/} and {\it n2} are numeric constants, is invalid. Either one
+        of the values in not a valid number, or {\it n1\/} is not smaller than
+        {\it n2}.
+
+\list{051} \boldline{invalid subscript, use ``[ ]'' operators on major dimensions}
+        You can use the ``array character index'' operator (braces: ``|{ }|''
+        only for the last dimension. For other dimensions, you must use the
+        cell index operator (square brackets: ``|[ ]|'').
+
+\list{052} \boldline{only the last dimension may be variable length}
+        Except the last dimension, all array dimensions must have an explicit
+        size.
+
+\list{053} \boldline{exceeding maximum number of dimensions}
+        The current implementation of the \Small\ compiler only supports
+        arrays with one or two dimensions.
+
+\list{054} \boldline{unmatched closing brace}
+        A closing brace (``|}|'') was found without matching opening brace
+        (``|{|'').
+
+\list{055} \boldline{start of function body without function header}
+        An opening brace (``|{|'') was found outside the scope of a function.
+        This may be caused by a semicolon at the end of a preceding function
+        header.
+
+\list{056} \boldline{local variables and function arguments cannot be public}
+        A local variable or a function argument starts with the character ``@'',
+        which is invalid.
+
+\list{057} \boldline{Unfinished expression before compiler directive}
+        Compiler directives may only occur {\it between\/} statements, not
+        {\it inside\/} a statement. This error typically occurs when an
+        expression statement is split over multiple lines and a compiler
+        directive appears between the start and the end of the expression.
+        This is not supported.
+
+\list{058} \marginbox0{Named versus positional parameters: \xrefn{p.named.parameters}}%
+        \boldline{duplicate argument; same argument is passed twice}
+        In the function call, the same argument appears twice, possibly through
+        a mixture of named and positional parameters.
+
+\list{059} \boldline{function argument may not have a default value (variable {\it name})}
+        All arguments of {\bf public functions} must be passed explicitly. Public
+        functions are typically called from the host application, who has no
+        knowledge of the default parameter values. Arguments of {\bf user defined
+        operators} are implied from the expression and cannot be inferred from
+        the default value of an argument.
+
+\list{060} \boldline{multiple ``\#else'' directives between ``\#if \dots\ \#endif}
+        Two or more |#else| directives appear in the body between the matching
+        |#if| and |#endif|.
+
+\list{061} \boldline{operator cannot be redefined}
+        Only a select set of operators may be redefined, this operator is not
+        one of them.  %??? page reference
+
+\list{062} \boldline{number of operands does not fit the operator}
+        When redefining an operator, the number of operands that the operator
+        has (1 for unary operators and 2 for binary operators) must be equal
+        to the number of arguments of the operator function.
+
+\list{063} \boldline{operator requires that the function result has a ``bool'' tag}
+        Logical and relational operators are defined as having a result that is
+        either |true| (1) or |false| (0) and having a ``bool'' tag. A
+        user defined operator should adhere to this definition.
+
+\list{064} \boldline{cannot change predefined operators}
+        One cannot define operators to work on untagged values, for example,
+        because \Small\ already defines this operation.
+
+\list{065} \boldline{function argument may only have a single tag (argument {\it number})}
+        In a user defined operator, a function argument may not have multiple
+        tags.
+
+\list{066} \boldline{function argument may not be a reference argument or an array (argument {\it number})}
+        In a user defined operator, all arguments must be cells (non-arrays)
+        that are passed ``by value''.
+
+\list{067} \boldline{variable cannot be both a reference and an array (variable {\it name})}
+        A function argument may be denoted as a ``reference'' or as an array,
+        but not as both.
+
+\list{068} \boldline{invalid rational number precision in \#pragma}
+        The precision was negative or too high. For floating point rational
+        numbers, the precision specification should be omitted.
+
+\list{069} \boldline{rational number format already defined}
+        This |#pragma| conflicts with an earlier |#pragma| that specified
+        a different format.
+
+\list{070} \marginbox0{\#pragma rational: \xrefn{p.rational.p}}%
+        \boldline{rational number support was not enabled}
+        A rational literal number was encountered, but the format for rational
+        numbers was not specified.
+
+\list{071} \marginbox0{Forward declaration: \xrefn{p.function.forward}}%
+        \boldline{user-defined operator must be declared before use (function {\it name})}
+        Like a variable, a user-defined operator must be declared before its
+        first use. This message indicates that prior to the declaration of the
+        user-defined operator, an instance where the operator was used on operands
+        with the same tags occurred. This may either indicate that the program
+        tries to make mixed use of the default operator and a user-defined
+        operator (which is unsupported), or that the user-defined operator must
+        be ``forwardly declared''.
+
+\list{072} \boldline{``sizeof'' operator is invalid on ``function'' symbols}
+        You used something like ``|sizeof MyCounter|'' where the symbol ``|MyCounter|''
+        is not a variable, but a function. You cannot request the size of a
+        function.
+
+\list{073} \boldline{function argument must be an array (argument {\it name})}
+        The function argument is a constant or a simple variable, but the
+        function requires that you pass an array.
+
+\list{074} \boldline{\#define pattern must start with an alphabetic character}
+        Any pattern for the |#define| directive must start with a letter, an underscore
+        (``|_|'') or an ``|@|''-character. The pattern is the first word that
+        follows the |#define| keyword.
+
+\list{075} \boldline{input line too long (after substitutions)}
+        Either the source file contains a very long line, or text substitutions
+        make a line that was initially of acceptable length grow beyond its bounds.
+        This may be caused by a text substitution that causes recursive substitution
+        (the pattern matching a portion of the replacement text, so that this part
+        of the replacement text is also matched and replaced, and so forth).
+
+\endlist
+
+
+\subsection{Fatal Errors}
+
+\beginlist{40pt}
+\list{100} \boldline{cannot read from file: {\it filename}}
+        The compiler cannot find the specified file or does not have access to
+        it.
+
+\list{101} \boldline{cannot write to file: {\it filename}}
+        The compiler cannot write to the specified output file, probably
+        caused by insufficient disk space or restricted access rights (the
+        file could be read-only, for example).
+
+\list{102} \boldline{table overflow: {\it table name}}
+        This is an internal error of the compiler, caused by the limited size
+        of its internal tables. The ``table name'' is one of the following:
+
+        ``staging buffer'': the staging buffer holds the code generated for an
+        expression before it is passed to the peephole optimizer. The staging
+        buffer grows dynamically, so an overflow of the staging buffer
+        basically is an ``out of memory'' error.
+
+        ``loop table'': the loop table is a stack used with nested |do|, |for|,
+        and |while| statements. The table allows nesting of these statements
+        up to 24 levels.
+
+        ``literal table'': this table keeps the literal constants (numbers,
+        strings) that are used in expressions and as initiallers for arrays.
+        The literal table grows dynamically, so an overflow of the literal
+        table basically is an ``out of memory'' error.
+
+        ``compiler stack'': the compiler uses a stack to store temporary
+        information it needs while parsing. An overflow of this stack is
+        probably caused by deeply nested (or recursive) file inclusion or
+        complex expression involving function calls with many arguments.
+
+        ``option table'': in case that there are more options on the command
+        line or in the response file than the compiler can cope with.
+
+\list{103} \boldline{insufficient memory}
+        General ``out of memory'' error.
+
+\list{104} \boldline{invalid assembler instruction {\it symbol}}
+        An invalid opcode in an |#emit| directive.
+
+\list{105} \boldline{numeric overflow, exceeding capacity}
+        A numeric constant, notably a dimension of an array, is too large for
+        the compiler to handle. For example, when compiled as a 16-bit
+        application, the compiler cannot handle arrays with more than 32767
+        elements.
+
+\list{106} \boldline{compaction buffer overflow} \sidx{P-code}
+        Compact encoding may in some particular cases result in files that would
+        actually be bigger than the non-compact encoding. The abstract machine
+        cannot handle this, as it unpacks the P-code ``in place''. The solution
+        to this error is to compile the file with plain (``non-compact'') encoding
+        ---see \xref{p.compress.p}.
+
+\list{107} \boldline{too many error/warning messages on one line}
+        A single line that causes several error\slash warning messages is
+        often an indication that the \Small\ parser is unable to ``recover''
+        from an earlier error. In this situation, the parser is unlikely to
+        make any sense of the source code that follows ---producing only (more)
+        inappropriate error messages. Therefore, compilation is halted.
+\endlist
+\sidx[end]{Errors}
+
+
+\subsection{Warnings}
+\sidx[begin]{Warnings}
+
+\beginlist{40pt}
+\list{200} \boldline{symbol is truncated to {\it number\/} characters}
+        The symbol is longer than the maximum symbol length. The maximum length
+        of a symbol depends on wether the symbol is native, public or neither.
+        Truncation may cause different symbol names to become equal, which may
+        cause error 021 or warning 219.
+
+\list{201} \boldline{redefinition of constant (symbol {\it name\/})}
+        The symbol was previously defined to a different value.
+
+\list{202} \boldline{number of arguments does not match definition}
+        At a function call, the number of arguments passed to the function
+        (actual arguments) differs from the number of formal arguments
+        declared in the function heading. To declare functions with variable
+        argument lists, use an ellipsis (|...|) behind the last known argument
+        in the function heading; for example: |print(formatstring,...);|
+        (see \xref{p.var.args}).
+
+\list{203} \boldline{symbol is never used: {\it identifier}}
+        A symbol is defined but never used. Public functions are excluded
+        from the symbol usage check (since these may be called from the
+        outside).
+
+\list{204} \boldline{symbol is assigned a value that is never used: {\it identifier}}
+        A value is assigned to a symbol, but the contents of the symbol are
+        never accessed.
+
+\list{205} \boldline{redundant code: constant expression is zero}
+        Where a conditional expression was expected, a constant expression
+        with the value zero was found, e.g. ``|while (0)|'' or ``|if (0)|''. The
+        the conditional code below the test is {\it never\/} executed, and it
+        is therefore redundant.
+
+\list{206} \boldline{redundant test: constant expression is non-zero}
+        Where a conditional expression was expected, a constant expression
+        with a non-zero value was found, e.g. |if (1)|. The test is redundant,
+        because the conditional code is {\it always\/} executed.
+
+\list{207} \boldline{unknown ``\#pragma''}
+        The compiler ignores the pragma. The |#pragma| directives may change
+        between compilers of different vendors and between different versions
+        of a compiler of the same version.
+
+\list{208} \boldline{function uses both ``return;'' and ``return {\it value};''}
+        The function returns both {\it with\/} and {\it without\/} a return
+        value. The function should be consistent in always returning with a
+        function result, or in never returning a function result.
+
+\list{209} \boldline{function should return a value}
+          The function does not have a |return| statement, or it does not
+          have an expression behind the |return| statement, but the
+          function's result is used in a expression.
+
+\list{210} \boldline{possible use of symbol before initialization: {\it identifier}}
+        A local (uninitialized) variable appears to be read before a value is
+        assigned to it. The compiler cannot determine the actual order of
+        reading from and storing into variables and bases its assumption of
+        the execution order on the physical appearance order of statements an
+        expressions in the source file.
+
+\list{211} \boldline{possibly unintended assignment}
+        Where a conditional expression was expected, the assignment operator
+        (|=|) was found instead of the equality operator (|==|). As this is a
+        frequent mistake, the compiler issues a warning. To avoid this
+        message, put parentheses around the expression, e.g. |if ( (a=2) )|.
+
+\list{212} \boldline{possibly unintended bitwise operation}
+        Where a conditional expression was expected, a bitwise operator
+        (|&| or \vbar) was found instead of a Boolean operator (|&&| or
+        \dvbar). In situations where a bitwise operation seems unlikely, the
+        compiler issues this warning. To avoid this message, put parentheses
+        around the expression.
+
+\list{213} \marginbox0{Tags are discussed on page \xrefn{p.tagnames}}%
+        \boldline{tag mismatch}
+        A tag mismatch occurs when:
+        \beginlist{1em} \compactlist
+        \list{\lbullet} assigning to a tagged variable a value that is
+                untagged or that has a different tag
+        \list{\lbullet} the expressions on either side of a binary operator
+                have different tags
+        \list{\lbullet} in a function call, passing an argument that is
+                untagged or that has a different tag than what the function
+                argument was defined with
+        \list{\lbullet} indexing an array which requires a tagged index with
+                no tag or a wrong tag name
+        \endlist
+
+\list{214} \boldline{possibly a ``const'' array argument was intended: {\it identifier}}
+        Arrays are always passed by reference. If a function does not modify
+        the array argument, however, the compiler can sometimes generate more
+        compact and quicker code if the array argument is specifically marked
+        as ``|const|''.
+
+\list{215} \boldline{expression has no effect}
+        The result of the expression is apparently not stored in a variable
+        or used in a test. The expression or expression statement is therefore
+        redundant.
+
+\list{216} \boldline{nested comment}
+        \Small\ does not support nested comments.
+
+\list{217} \boldline{loose indentation}
+        Statements at the same logical level do not start in the same column;
+        that is, the indents of the statements are different. Although \Small\ is
+        a free format language, loose indentation frequently hides a logical
+        error in the control flow. \lbreak
+        The compiler can also incorrectly assume loose indentation if the
+        \smallcaps{TAB} size with which you indented the source code differs
+        from the assumed size, see |#pragma tabsize| on \xref{p.tabsize.p} (or
+        the compiler option |-t|). %\xref{p.compiler.options}
+
+\list{218} \boldline{old style prototypes used with optional semicolon}
+        When using ``optional semicolons'', it is preferred to explicitly
+        declare forward functions with the |forward| keyword than using
+        terminating semicolon.
+
+\list{219} \boldline{local variable {\it identifier\/} shadows a symbol at a preceding level}
+        \sidx{Shadowing}
+        A local variable has the same name as a global variable, a function, a
+        function argument, or a local variable at a lower precedence level.
+        This is called ``shadowing'', as the new local variable makes the
+        previously defined function or variable inaccessible.
+
+\list{220} \boldline{exported or native symbol {\it identifier\/} is truncated to {\it value\/} characters}
+        Symbol names for exported or native functions have a more restrictive
+        length, due to restrictions in the file format, than names of internal
+        functions. Although the symbol name can be used as is internally, it
+        will be inserted in the native or exported table in its truncated form.
+
+\list{221} \boldline{label name {\it identifier\/} shadows tag name}
+        A code label (for the |goto| instruction) has the same name as a
+        previously defined tag. This may indicate a faultily applied
+        tag override; a typical case is an attempt to apply a tag
+        override on the variable on the left of the |=| operator in an
+        assignment statement.
+
+\list{222} \boldline{number of digits exceeds rational number precision}
+        A literal rational number has more decimals in its fractional part than
+        the precision of a rational number supports. The remaining decimals
+        are ignored.
+
+\list{223} \boldline{redundant ``sizeof'': argument size is always 1 (symbol {\it name})}
+        A function argument has a as its default value the size of another
+        argument of the same function. The ``sizeof'' default value is only
+        useful when the size of the referred argument is unspecified in the
+        declaration of the function; i.e., if the referred argument is an
+        array.
+
+\list{224} \marginbox0{\#if \dots\ \#else \dots\ \#endif: \xrefn{p.if.p}}%
+        \boldline{indeterminate array size in ``sizeof'' expression (symbol {\it name})}
+        The operand of the |sizeof| operator is an array with an unspecified
+        size. That is, the size of the variable cannot be determined at compile
+        time. If used in an ``|if|'' instruction, consider a conditionally
+        compiled section, replacing |if| by |#if|.
+
+\list{225} \boldline{unreachable code}
+        The indicated code will never run, because an instruction before (above)
+        it causes a jump out of the function, out of a loop or elsewhere. Look
+        for |return|, |break|, |continue| and |goto| instructions above the
+        indicated line.
+
+\list{226} \boldline{a variable is assigned to itself (symbol {\it name})}
+        There is a statement like ``|x = x|'' in the code. The parser checks
+        for self assignments {\it after\/} performing any text and constant
+        substitutions, so the left and right sides of an assignment may appear
+        to be different at first sight. For example, if the symbol ``|TWO|'' is
+        a constant with the value 2, then ``|var[TWO] = var[2]|'' is also a
+        self-assignment.
+
+        Self-assignments are, of course, redundant, and they may hide an error
+        (assignment to the wrong variable, error in declaring constants).
+
+        Note that the \Small\ parser is limited to performing ``static checks''
+        only. In this case it means that it can only compare array assignments
+        for self-assignment with constant array indices.
+\endlist
+\sidx[end]{Warnings}
+
+
+\appendix{Rationale}
+%-------------------
+The first issue in the presentation of a new computer language should be:
+{\it why a new language at all?}
+
+% Small versus Java
+% o  embed compiled P-code into data files (OLE-like)
+% o  low overhead on native functions
+% o  simple language, aimed at non-expert programmers (be terse; avoid
+%    administrative overhead); however, it is still a free-format language
+% o  reliable performance, no garbage collection
+% o  small footprint
+% o  liberal license
+
+% Small is for customizing applications, not for writing applications
+% Small manipulates objects in the host application, its own data structuring is weak
+%       - native function interface
+%       - host application can modify public variables
+%       - script cannot reach anything outside its sandbox
+%       - I assumed the host application would allow manipulation of its internal objects via handles and native functions
+% Small is centred round function calls
+%       - public functions
+%       - native functions
+%       - call by value / call by reference
+%       - named parameters / positional parameters
+%       - default values (also for reference objects)
+%       - tag system, plurally tagged function arguments
+%       - low overhead on calling native functions (packing/unpacking of
+%         function arguments is often not needed; the host application has
+%         direct access to the data in the abstract machine)
+% Small's performance is reliable (no garbage collection) and the complete
+%       toolkit has a small footprint
+
+\sidx{Java}
+Indeed, I {\it did\/} look at several existing languages before I designed my
+own. Not surprisingly these days, I specifically considered using Java. It
+turned out quickly, though, that Java's design goals were not my design goals.
+For example, where Java promotes distributed computing where ``packages''
+reside on diverse machines, \Small\ is designed so that the compiled applets can
+be easily stored in a compound file together with other data; and where Java
+is designed to be architecture neutral and application independent, \Small\ is
+designed to be tightly coupled with an application; native functions are a
+taboo to some extent in Java (at least, it is considered ``impure''), whereas
+native functions are ``the reason to be'' for \Small. From the viewpoint of
+\Small, the intended use of Java is upside down: native functions are seen
+as an auxiliary library that the application --in Java-- uses; in \Small, native
+functions are part of ``the application'' and the \Small\ program itself is a set
+of auxiliary functions that the application uses.
+
+\sidx{Host application}%
+{\bf A language for scripting applications:} \Small\ is targeted as an
+{\it extension language}, meant to write application-specific macros or
+subprograms with. \Small\ is not the appropriate language for implementing
+business applications or operating systems in. \Small\ is designed to be easily
+integrated with, and embedded in, other systems\slash applications.
+
+As an extension language, \Small\ programs typically manipulate objects of the
+host application. In an animation system, \Small\ scripts deal with sprites,
+events and time intervals; in a communication application, \Small\ scripts handle
+packets and connections. I assumed that the host application will make (a subset
+of) its resources and functionality available via functions, handles, magic
+cookies\dots\ in a similar way that a contemporary operating system provides an
+interface to processes written in C/\Cpp\ ---e.g., the Win32 API or Linux' ``|glibc|''.
+To that end, \Small\ has a simple and efficient interface to the ``native''
+functions of the host application.
+
+The first and foremost criterions for the \Small\ language were execution speed
+and reliability. Reliability in the sense that a \Small\ program should not be
+able to crash the application or tool in which it is embedded ---at least, not
+easily. Although this limits the capabilities of the language significantly,
+the advantages are twofold:
+\beginlist{1em}\compactlist
+\list{\lbullet} the application vendor can rest assured that its application
+  will not crash due to user additions or macros,
+\list{\lbullet} the user is free to experiment with the language with no (or
+  little) risk of damaging the application files.
+\endlist
+
+{\bf Speed is essential:} \Small\ programs would probably run in an abstract
+machine (I do not foresee native code \Small\ compilers), and abstract machines
+are notoriously slow. I had to make a language that has low overhead and
+a language for which a fast abstract machine can be written. Speed should
+also be reliable, in the sense that a \Small\ script should not slow down over
+time or have an occaisional performance hiccup. Consequently, \Small\ excludes
+any required ``background process'', such as garbage collection, and the core
+of the abstract machine does not implicitly allocate any system or application
+resources while it runs. That is, \Small\ does not allocate memory or open files,
+not without the help of a native function that the script calls {\it explicitly}.
+
+\nameidx{Ritchie, Dennis}
+As Dennis Ritchie said, by intent the C language confines itself to facilities
+that can be mapped relatively efficiently and directly to machine
+instructions. The same is true for \Small, and this is also a partial
+explication why \Small\ looks so much like C.
+
+A brief analysis showed that the instruction decoding logic for an abstract
+machine would quickly become the bottleneck in the performance of the abstract
+machine. To keep the decoding simple, each opcode should have the same size
+(excluding operands), and the opcode should fully specify the instruction
+(including the addressing methods, size of the operands, etc.). That meant
+that for each operation on a variable, the abstract machine needed a separate
+opcode for every combination of variable type, storage class and access method
+(direct, or dereferenced). For even three types (|int|, |char| and |unsigned int|),
+two storage classes (global and local) and three access methods (direct,
+indirect or indexed), a total of 18 opcodes (3*2*3) are needed to simply fetch
+the value of a variable.
+
+At the same time, to keep the abstract machine small and manageable, I set a
+maximum of approximately 100 instructions.\stdfootnote{134 Opcodes are defined
+at this writing. To exploit performance gains by forcing proper alignment of
+memory words, the current abstract machine uses 32-bit opcodes. There is no
+technical limit on the number of opcodes, but in the interest of a small
+footprint, the number of opcodes should be restricted.\par} With 18 opcodes to
+load a variable in a register, 18 more to store a register into a variable,
+another 18 to get the address of a variable, etc\dots\ I was quickly approaching
+(and exceeding) my limit of a hundred opcodes.
+
+\sidx{BOB} \sidx{REXX}
+The languages \smallcaps{BOB} and \smallcaps{REXX} inspired me to design a
+typeless language. This saved me a lot of opcodes. At the same time, the
+language could no longer be called a ``subset of C''. I was changing the
+language. Why, then, not go a foot further in changing the language? This is
+where a few more design guidelines came into play:
+\beginlist{1em}\compactlist
+\list{\lbullet} give the programmer a general purpose tool, not a special
+  purpose solution
+\list{\lbullet} avoid error prone language constructs; promote error checking
+\list{\lbullet} be pragmatic
+\endlist
+
+{\bf A general purpose tool:} \Small\ is targeted as an extension language,
+without specifying exactly what it will extent. Typically, the application or
+the tool that uses \Small\ for its extension language will provide many,
+optimized routines or commands to operate on its native objects, be it text,
+database records or animated sprites. The extension language exists to permit
+the user to do what the application developer forgot, or decided not to include. Rather
+than providing a comprehensive library of functions to sort data, match
+regular expressions, or draw cubic B\'ezier splines, \Small\ should supply a
+(general purpose) means to use, extend and combine the specific (``native'')
+functions that an application provides.
+
+\Small\ lacks a comprehensive standard library. By intent, \Small\ also lacks
+features like pointers, dynamic memory allocation, direct access to the
+operating system or to the hardware, that are needed to remain competitive in
+the field of general purpose application or system programming. You cannot
+build linked lists or dynamic tree data structures in \Small, and neither can
+you access any memory beyond the boundaries of the abstract machine. That is
+not to say that a \Small\ program can never use dynamic, sorted symbol tables,
+or change a parameter in the operating system; it {\it can\/} do that, but it
+needs to do so by calling a ``native'' function that an application provides
+to the abstract machine.
+
+In other words, if an application chooses to implement the well known |peek|
+and |poke| functions (from BASIC) in the abstract machine, a \Small\ program can
+access any byte in memory, insofar the operating system permits this.
+Likewise, an application can provide native functions that insert, delete or
+search symbols in a table and allows several operations on them. The proposed
+core functions |getproperty| and |setproperty| are an example of native
+functions that build a linked list in the background.
+
+{\bf Promote error checking:} As you may have noticed, one of the foremost
+design criterions of the C language, ``trust the programmer'', is absent from
+my list of design criterions. Users of script languages are not always full
+time programmers; and even if they are, \Small\ will probably not be their
+{\it primary\/} language. Most \Small\ programmers will keep learning the language
+as they go, and will even after years not have become experts. Enough reason,
+hence, to replace error prone elements from the C language (pointers) with
+saver, albeit less general, constructs (references).\stdfootnote{You should see
+this remark in the context of my earlier assertion that many ``\Small'' programmers
+will be novice programmers. In my (teaching) experience, novice programmers
+make many pointer errors, as opposed to experienced C/\Cpp\ programmers.\par}
+References are copied from \Cpp. They are nothing else than pointers in
+disguise, but they are restricted in various, mostly useful, ways. Turn to a
+\Cpp\ book to find more justification for references.
+
+\sidx{Assertions}
+I find it sad that many, even modern, programming languages have so
+little built-in, or easy to use, support for confirming that programs do as the
+programmer intended. I am not referring to theoretical correctness (which is
+too costly to achieve for anything bigger than toy programs), but practical,
+easy to use, verification mechanisms as a help to the programmer. \Small\ provides
+both compile time and execution time assertions to use for preconditions,
+postconditions and invariants.
+
+\sidx{Tag names}
+The typing mechanism that most programming languages use also an automatic
+``catcher'' of a whole class of bugs. By virtue of being a typeless language,
+\Small\ lacked these error checking abilities. This was clearly a weakness,
+and I invented the ``tag'' mechanism to re-introduce the ability to
+verify function parameter passing, array indexing and other operations.
+
+\sidx{Subject oriented} \nameidx{Tremblay, J.P.} \nameidx{Sorenson, P.}
+{\bf Be pragmatic:} The object-oriented programming paradigm has not entirely
+lived up to its promise, in my opinion. On the one hand, OOP solves many tasks
+in an easier or cleaner way, due to the added abstraction layer. On the other
+hand, contemporary object-oriented languages leave you struggling with the
+language as much as with the task at hand. Jean-Paul Tremblay and Paul Sorenson
+criticize the C language's large operator set with the argument that studies
+have shown that people have difficulty with memorizing and understanding deep
+hierarchies.\stdfootnote{``The Theory and Practice of Compiler Writing'',
+McGraw-Hill, 1985, pp. 92.\par} The same argument also applies to the class
+hierarchies in object-oriented programming libraries. Object-oriented
+programming is not a solution for a non-expert programmer with little patience
+for artificial complexity. The criterion ``be pragmatic'' is a reminder to
+seek solutions, not elegancy. Sarcastically, perhaps, I have attempted to make
+\Small\ a {\it subject oriented\/} language.
+
+
+\subsection{Practical design criterions}
+
+The fact that \Small\ looks so much like C cannot be a coincidence, and it isn't.
+\Small\ started as a C dialect and stayed that way, because C has a proven track
+record. The changes from C were mostly born out of necessity after rubbing out
+the features of C that I did not want in a scripting language: no pointers and
+``typing'' system.
+
+\Small, being a typeless language, needed a different means to declare
+variables. In the course of modifying this, I also dropped the C requirement
+that all variables should be declared at the top of a compound statement.
+\Small\ is a little more like \Cpp\ in this respect.
+
+C language functions can pass ``output values'' via pointer arguments. The
+standard function |scanf|, for example, stores the values or strings that it
+reads from the console into its arguments. You can design a function in C so
+that it optionally returns a value through a pointer argument; if the caller
+of the function does not care for the return value, it passes |NULL| as the
+pointer value. The standard function |strtol| is an example of a function that
+does this. This technique frequently saves you from declaring and passing
+dummy variables. \Small\ replaces pointers with references, but references
+cannot be |NULL|. Thus, \Small\ needed a different technique to ``drop'' the
+values that a function returns via references. Its solution is the use of an
+``argument placeholder'' that is written as an underscore character (``_'');
+Prolog programmers will recognize it as a similar feature in that language.
+The argument placeholder reserves a temporary anonymous data object (called a
+``cell'' in \Small) that is automatically destroyed after the function call.
+
+The temporary cell for the argument placeholder should still have a value.
+Therefore, a function must specify for each passed-by-reference argument what
+value it will have upon entry when the caller passes the placeholder instead
+of an actual argument. By extension, I also added default values for arguments
+that are ``passed-by-value''. The feature to optionally remove all arguments
+with default values from the right was copied from \Cpp.
+
+\sidx{Packed string} \sidx{Unpacked string} \sidx{String}[packed \midtilde]
+\sidx{String}[unpacked \midtilde] \sidx{BCPL}
+\nameidx{Ritchie, Dennis}
+When speaking of BCPL and B, Dennis Ritchie said that C was invented in part
+to provide a plausible way of dealing with character strings when one begins
+with a word-oriented language. \Small\ provides two options for working with
+strings, packed and unpacked strings. In an unpacked string, every character fits
+in a cell. The overhead for a typical 32-bit implementation is large:
+one character would take four bytes. Packed strings store up to four
+characters in one cell, at the cost of being significantly more difficult to
+handle if you could only access full cells. Modern BCPL implementations
+provide two array indexing methods: one to get a word from an array and one to
+get a character from an array. \Small\ copies this concept, although the syntax
+differs from that of BCPL. The packed string feature also led to the new
+operator |char|.
+
+\sidx{Internet} \sidx{Unicode}
+Unicode applications often have to deal with two characters sets: 8-bit for
+legacy file formats and standardized transfer formats (like many of the
+Internet protocols) and the 16-bit Unicode character set. Although the
+\Small\ compiler has an option that makes characters 16-bit (so only two
+characters fit in a 32-bit cell), a more convenient approach may be to store 8-bit
+character strings in packed strings and 16-bit (Unicode) strings in unpacked
+strings. This turns a weakness in \Small\ ---the need to distinguish packed strings
+from unpacked strings--- into a strength: \Small\ can make that distinction quite
+easily.
+
+Notwithstanding the above mentioned changes, plus those in the chapter
+``Pitfalls: differences from C'' (\xref{p.pitfalls}), I have tried to keep
+\Small\ close to C.
+
+\appendix{License}
+%-----------------
+\sidx{License}
+\input license

@@ -1,0 +1,170 @@
+%\def\psfonts{}
+
+\input manual
+
+\vsize=7.1 true in        % page approximately as high as it is wide
+\hsize=5.35 true in
+\marginwidth=0.93 true in
+
+\ifx \psfonts \undefined
+  %\voffset=-0.25 true in % page aligned on top
+  \voffset=3.07 true in   % page aligned on bottom
+\else
+  \voffset=2.25in % for distiller (set page size to 21.0 x 23.0 cm)
+  \special{"[/PageMode /UseOutlines /DOCVIEW pdfmark}%
+\fi
+
+\pageno = -1
+
+% TITLE PAGE
+
+\vskip30pt
+\centerline{\secfont the}
+\vskip -3pt
+\centerline{\doctitlefont Small}
+{\def\ {\hskip 0pt}
+ \centerline{\secfont b\ o\ o\ k\ l\ e\ t}
+}
+\bigskip
+\centerline{\doctitlefont Implementor's Guide}
+\vskip30pt
+\centerline{\subsecfont October 2003}
+
+\vfill  % fill up to the rest of the page
+\readtocfile
+\vskip10pt \hrule \smallskip \hrule height 1.5pt \smallskip
+\rightline{\it ITB CompuPhase}
+\eject
+
+% INSIDE PAGE
+
+\headline={\vbox{%
+  \tenrm\ifodd\pageno\hfil\folio\else\folio\hfil\fi
+  \strut \hrule }}%
+
+\begingroup
+\parskip=0pt\sevenrm \everypar{\hangindent=20pt}
+``Java'' is a trademark of Sun Microsystems, Inc.
+
+``Microsoft'' and ``Microsoft Windows'' are registered trademarks of
+Microsoft Corporation.
+
+``CompuPhase'' is a registered trademarks of ITB CompuPhase.
+
+\endgroup
+
+~\vfill
+
+Copyright \copyright\ 1997--2003, ITB CompuPhase; Brinklaan 74-b, 1404GL Bussum,
+The Netherlands (Pays Bas); telephone:~(+31)-(0)35~6939~261 \lbreak
+%fax:~(+31)-(0)35 6939 293 \lbreak
+e-mail: info@compuphase.com, CompuServe:~100115,2074 \lbreak
+WWW: http://www.compuphase.com
+
+The information in this manual and the associated software are provided ``as
+is''. There are no guarantees, explicit or implied, that the software and the
+manual are accurate.
+
+Requests for corrections and additions to the manual and the software can be
+directed to ITB CompuPhase at the above address.
+
+{\font\smallfont=cmr7\smallfont Typeset with \TeX\ in the ``Computer Modern''
+ and ``Pandora'' typefaces at a base size of 11 points.}
+\eject
+
+
+% BODY
+
+\pageno = 1
+\headline={%
+          \ifhardpage
+              \let\firstmark=\empty
+              \let\botmark=\empty
+              \let\topmark=\empty
+          \fi
+          %
+          \vbox{\line{%
+          \tenrm
+          \ifodd\pageno \hfil{\it\botmark}\quad\llbullet\quad\folio
+          \else         \folio\quad\llbullet\quad{\it\firstmark}\hfil
+          \fi
+          \strut}%
+          %
+          \ifhardpage
+              \global\hardpagefalse
+          \else
+              \hrule
+          \fi
+          %
+         }}%
+
+\font\dingbats=bbding
+\def\dingbatseparator{%
+  \vskip 5pt plus 3pt minus 1pt\relax
+  {\centerline{{\dingbats\char 113}} \vskip -\parskip}%
+  \vskip 5pt plus 3pt minus 1pt\goodbreak
+}
+\halflineskip
+
+
+\chapter{Introduction}
+
+``\Small'' is a simple, typeless, 32-bit extension language with a C-like syntax.
+The language and features are described in the companion booklet with
+the sub-title ``The Language''. This ``Implementor's Guide'' discusses how
+to embed the \Small\ scripting language in a host application.
+
+The \Small\ toolkit consists of two major parts:
+the compiler takes a script and converts it to P-code (or ``bytecode''),
+which is subsequently executed on an abstract machine (or ``virtual machine'').
+\Small\ itself is written mostly in the C programming language (there are a
+few files in assembler) and it has been ported to Microsoft Windows, Linux,
+PlayStation 2 and the XBox. When embedding \Small\ in host applications that are
+not written in C or \Cpp, I suggest that you use the AMX DLLs under Microsoft
+Windows.
+
+\dingbatseparator
+
+There is a short chapter on the compiler. Most applications execute the compiler
+as a standalone utility with the appropriate options. Even when you link the
+compiler into the host program, its API is still based on options as if they
+were specified on the command line.
+
+The abstract machine is a function libary. The chapter devoted to it contains
+several examples for embedding the abstract machine in a host application, in
+addition to a reference to all API functions.
+
+Appendices, finally, give compiling instructions for various platforms and
+background information ---amongst others the debugger interface and the
+instruction set.
+
+
+\input tools \vfill\eject
+
+\writetocentry{chapter}{Appendices} \pdfbookmark{Appendices}
+\input appimp
+
+\forceoddpage   % make sure the index starts at an odd page
+\chapter{Index}
+\sidx[see]{Bytecode}{P-code}
+\sidx[see]{MASM}{Microsoft MASM}
+\sidx[see]{NASM}{Netwide Assembler}
+\sidx[see]{TASM}{Borland TASM}
+\sidx[see]{Virtual Machine}{Abstract \midtilde}
+\sidx[see]{WASM}{Watcom WASM}
+
+\bigskip
+\beginlist{1em}\compactlist
+\list{\lbullet} Names of persons (not products) are in {\it italics}.
+\list{\lbullet} Function names, constants and compiler reserved words are
+  in |typewriter font|.
+\endlist
+\bigskip
+
+\begingroup\parskip=0pt plus 1pt
+\hfuzz=3pt
+\readindexfile{i}
+\endgroup
+
+\bye
+
