@@ -46,7 +46,7 @@
   #include <windows.h>
 #endif
 
-#include "Sc.h"
+#include "sc.h"
 #define VERSION_STR "2.3.1"
 #define VERSION_INT 0x231
 
