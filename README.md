@@ -13,8 +13,9 @@ The source code authors used Watcom compiler along with Opus Make. I tried this 
 The repository is structured and set up as a standard CMake project. Simply clone or download the repository and open it in your CMake-compliant environment.
 
 ## Usage
-`sc <filename> [options]`
 ```
+sc.exe <filename> [options]
+
 Options:
          -A<num>  alignment in bytes of the data segment and the stack
          -a       output assembler code (skip code generation pass)
