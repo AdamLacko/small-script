@@ -34,3 +34,4 @@ Options:
          -P[+/-]  strings are "packed" by default (default=-)
          -p<name> set name of "prefix" file
 ```
+## License
