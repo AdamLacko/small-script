@@ -1,5 +1,5 @@
-# Small Script v2.3.1
-This repository contains a source code and build setup for **Small v2.3.1** - a specific version dating back to 2003 that was used by *Black Isle Studios* in later *cancelled videogame Fallout 3*, then codenamed **Van Buren**.
+# Small Script v2.3.1 for Fallout Van Buren
+This repository contains a **modified source code** and build setup for **Small v2.3.1** - a specific version dating back to 2003 that was used by *Black Isle Studios* in later *cancelled videogame Fallout 3*, then codenamed **Van Buren**.
 
 [![GCC Build](https://github.com/AdamLacko/small-script/actions/workflows/cmake-build-gcc.yml/badge.svg)](https://github.com/AdamLacko/small-script/actions/workflows/cmake-build-gcc.yml)
 [![Clang Build](https://github.com/AdamLacko/small-script/actions/workflows/cmake-build-clang.yml/badge.svg)](https://github.com/AdamLacko/small-script/actions/workflows/cmake-build-clang.yml)
