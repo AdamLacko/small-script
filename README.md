@@ -8,7 +8,7 @@ An application or tool cannot do or be everything for all users. This not only j
 The Small language was designed as a flexible language for manipulating objects in a host application. The tool set (compiler, abstract machine) were written so that they were easily extensible and would run on different software/hardware architectures.
 
 ## Building
-The source code authors used Watcom compiler along with Opus Make. I tried this approach and managed to compile the source with [OpenWatcom](https://github.com/open-watcom/open-watcom-v2). However, due to several inconveniences caused by Watcom and its implementation of C, I decided to port the source for a more modern compiler. Thus, the source code in this repository compiles with modern GCC 13.1.0 and should compile with MSVC and Clang as well.
+The source code authors used Watcom compiler along with Opus Make. I tried this approach and managed to compile the source with [OpenWatcom](https://github.com/open-watcom/open-watcom-v2). However, due to several inconveniences caused by Watcom and its implementation of C, I decided to port the source for a more modern compiler. Thus, the source code in this repository compiles with modern GCC 13.1.0 and compiles with MSVC and Clang as well.
 
 The repository is structured and set up as a standard CMake project. Simply clone or download the repository and open it in your CMake-compliant environment.
 
